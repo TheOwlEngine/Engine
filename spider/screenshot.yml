@@ -1,0 +1,33 @@
+engine: http://127.0.0.1:3000
+webpage: https://echo.owlengine.com/ip
+
+# Basic Flow
+flow:
+  - name: Basic Screenshot
+    step:
+
+      # Take a screenshot
+      - screenshot:
+          path: sample-basic.jpg
+
+  - name: Crop Screenshot
+    step:
+
+      # Take a screenshot
+      - screenshot:
+          path: sample-crop.jpg
+          clip:
+            width: 100 
+            height: 100 
+
+  - name: Pre-defined Position
+    step:
+
+      # Take a screenshot
+      - screenshot:
+          path: sample-pre.jpg
+          clip:
+            top: 100 
+            left: 100 
+            width: 100 
+            height: 100 

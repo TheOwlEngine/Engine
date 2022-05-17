@@ -1,0 +1,25 @@
+engine: http://127.0.0.1:3000
+webpage: https://www.stealmylogin.com/demo.html
+
+# Basic Flow
+flow:
+  - name: Login Page
+    step:
+
+      # Test searching
+      - element: '[name="username"]'
+        write: username
+      - element: '[name="password"]'
+        write: password
+      - element: '[value="login"]'
+        action: Click
+      
+      # Wait until 2 (second)
+      - delay: 2
+
+  - name: Take Screenshot
+    step:
+
+      # Wait until
+      - screenshot:
+          path: auth.jpg

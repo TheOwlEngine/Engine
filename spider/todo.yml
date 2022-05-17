@@ -1,0 +1,36 @@
+engine: http://127.0.0.1:3000
+webpage: https://todomvc.com/examples/vue/
+
+# Basic Flow
+flow:
+  - name: Todo MVC
+    step:
+  
+      # Create new todo
+      - element: .new-todo
+        write: Sample scraper
+      - element: .new-todo
+        action: Enter
+
+      # Wait until 1 (second)
+      - delay: 1
+
+      # Create second todo
+      - element: .new-todo
+        write: Test Again
+      - element: .new-todo
+        action: Enter
+
+      # Wait until 1 (second)
+      - delay: 1
+
+      # Checklist second todo
+      - element: .todo:nth-child(2) .toggle
+        action: Click
+
+      # Wait until 4 (second)
+      - delay: 1
+
+      # Take a screenshot
+      - screenshot:
+          path: result.jpg
