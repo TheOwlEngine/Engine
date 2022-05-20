@@ -77,7 +77,7 @@ flow:
 
 And then you can see the result of this **flow** at `resources/json` directory, with log for every process available on `logs` directory
 
-> You can see another example **flow** on the `spider` directory
+> You can see another example **flow** on the `flows` directory
 
 ## License
 

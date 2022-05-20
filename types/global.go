@@ -13,10 +13,13 @@ type Screenshot struct {
 	Clip    Clip    `yaml:"clip"`
 }
 
-type Extraction struct {
-	Element string `yaml:"element"`
-	Name    string `yaml:"name"`
-	Result  string `yaml:"result"`
+type Element struct {
+	Selector       string `yaml:"selector"`
+	Contains       string `yaml:"contains"`
+	NextToSelector string `yaml:"next_to_selector"`
+	NextToContains string `yaml:"next_to_contains"`
+	Name           string `yaml:"name"`
+	Result         string `yaml:"result"`
 }
 
 type Step struct {
@@ -24,7 +27,7 @@ type Step struct {
 	Action     string     `yaml:"action"`
 	Delay      float64    `yaml:"delay"`
 	Element    string     `yaml:"element"`
-	Extract    Extraction `yaml:"extract"`
+	Take       []Element  `yaml:"extract"`
 	Screenshot Screenshot `yaml:"screenshot"`
 	Write      string     `yaml:"write"`
 }

@@ -1,0 +1,25 @@
+engine: http://127.0.0.1:3000
+webpage: https://en.wikipedia.org/wiki/Zebra
+
+# Basic Flow
+flow:
+  - name: Zebra
+    step:
+  
+      # Get data
+      - take:
+
+          - element:
+              next_to_contains: "Kingdom:"
+              name: kingdom
+              result: text
+
+          - element:
+              next_to_contains: "Phylum:"
+              name: phylum
+              result: text
+
+          - element:
+              next_to_contains: "Class:"
+              name: class
+              result: text

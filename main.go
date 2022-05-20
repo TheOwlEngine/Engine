@@ -342,18 +342,6 @@ func HandleStepLoop(step []types.Step, start int, total int, page *rod.Page, pag
 			} else {
 				page.MustScreenshot(screenshotPath)
 			}
-		} else if stepData.Extract.Element != "" {
-			var fieldName string = stepData.Extract.Element
-
-			if stepData.Extract.Name != "" {
-				fieldName = stepData.Extract.Name
-			}
-
-			if stepData.Extract.Result == "html" {
-				html[fieldName] = string(page.MustElement(stepData.Extract.Element).MustHTML())
-			} else {
-				html[fieldName] = string(page.MustElement(stepData.Extract.Element).MustText())
-			}
 		} else {
 			// noop
 		}

@@ -30,19 +30,19 @@ func main() {
 		Flags: []cli.Flag{},
 		Action: func(c *cli.Context) error {
 			workingDirectory, _ := os.Getwd()
-			workingSpiders, _ := filepath.Glob(workingDirectory + "/spider/*.yml")
+			workingFlows, _ := filepath.Glob(workingDirectory + "/flows/*.yml")
 
 			var wg sync.WaitGroup
 
-			wg.Add(len(workingSpiders))
+			wg.Add(len(workingFlows))
 
-			log.Println("[Owl] Start reading spider config")
+			log.Println("[Owl] Start reading flow config")
 
-			for spiderIndex, spider := range workingSpiders {
-				spiderData := spider
+			for flowIndex, flow := range workingFlows {
+				flowData := flow
 
-				go func(spiderIndex int) {
-					config, errorReading := readConfig(spiderData)
+				go func(flowIndex int) {
+					config, errorReading := readConfig(flowData)
 
 					if errorReading != nil {
 						log.Fatal(errorReading)
@@ -61,7 +61,7 @@ func main() {
 						log.Fatal("[Owl] Engine server is not running, you need to make sure engine server is reachable")
 					}
 
-					log.Println("[Owl] Sending " + spiderData + " config to the server")
+					log.Println("[Owl] Sending " + flowData + " config to the server")
 					request := types.Request{
 						Engine:  config.Engine,
 						WebPage: config.WebPage,
@@ -71,12 +71,12 @@ func main() {
 					sendRequest(request)
 
 					defer wg.Done()
-				}(spiderIndex)
+				}(flowIndex)
 			}
 
 			wg.Wait()
 
-			log.Println("[Owl] All spider already sended")
+			log.Println("[Owl] All flow already sended")
 			log.Println("[Owl] Application closed")
 
 			return nil
@@ -99,7 +99,7 @@ func readConfig(filename string) (*types.Config, error) {
 	c := &types.Config{}
 	err = yaml.Unmarshal(buf, c)
 	if err != nil {
-		return nil, fmt.Errorf("[Owl] Cannot read spider file %q: %v", filename, err)
+		return nil, fmt.Errorf("[Owl] Cannot read flow file %q: %v", filename, err)
 	}
 
 	return c, nil
