@@ -1,25 +1,68 @@
+# Engine Server
 engine: http://127.0.0.1:3000
-webpage: https://en.wikipedia.org/wiki/Zebra
 
-# Basic Flow
+# Target Website
+target: https://en.wikipedia.org/wiki/Zebra
+
+# Flow Name
+name: Find Zebra
+
+# Flow Process
 flow:
-  - name: Zebra
-    step:
-  
-      # Get data
-      - take:
 
-          - element:
-              next_to_contains: "Kingdom:"
-              name: kingdom
-              result: text
+  # Get data
+  - take:
 
-          - element:
-              next_to_contains: "Phylum:"
-              name: phylum
-              result: text
+      # Get heading page as heading
+      - selector: "#firstHeading"
+        name: heading
+        parse: text
 
-          - element:
-              next_to_contains: "Class:"
-              name: class
-              result: text
+      # Test add unknown element
+      - next_to_contains:
+          selector: "td"
+          text: ".thumb.tright"
+        name: description
+        parse: text
+
+  # Get data
+  - take:
+
+      # Get value next to kingdom element
+      - next_to_contains:
+          selector: "td"
+          text: "Kingdom:"
+        name: kingdom
+        parse: text
+
+      # Get value next to phylum element
+      - next_to_contains:
+          selector: "td"
+          text: "Phylum:"
+        name: phylum
+        parse: text
+
+      # Get value next to class element
+      - next_to_contains:
+          selector: "td"
+          text: "Class:"
+        name: class
+        parse: text
+
+  # Finding anchor with text "Fauna of Africa" and click it
+  - navigate: "Fauna of Africa"
+
+  # Get data
+  - take:
+
+      # Get heading page as sub heading
+      - selector: "#firstHeading"
+        name: sub_heading
+        parse: text
+
+      # Test add unknown element
+      - next_to_contains:
+          selector: "td"
+          text: ".thumb.tright"
+        name: sub_description
+        parse: text

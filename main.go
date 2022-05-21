@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"engine/types"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -42,7 +44,13 @@ var downloadDirectory string
 var jsonDirectory string
 var logsDirectory string
 
+var defaultTimeout time.Duration
+
+// TODO Comment
+// ....
 func main() {
+	defaultTimeout = 3 * time.Second
+
 	styler := style.NewConsoleStyler()
 
 	// enable stylish errors
@@ -146,6 +154,8 @@ func main() {
 	}
 }
 
+// TODO Comment
+// ....
 func HandleHTTPRequest(styler *style.GoStyler) {
 	http.HandleFunc("/", HandleMultiPages)
 	http.HandleFunc("/favicon.ico", Noop)
@@ -174,12 +184,15 @@ func HandleHTTPRequest(styler *style.GoStyler) {
 	panic(http.Serve(listener, nil))
 }
 
+// TODO Comment
+// ....
 func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	unique := uuid.New().String()
 	pageId := unique[len(unique)-12:]
 
 	switch r.Method {
 	case "POST":
+
 		// Declare a new Person struct.
 		var request types.Request
 
@@ -201,13 +214,11 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 			if len(request.Flow) > 0 {
 
-				page := engineBrowser.MustPage(request.WebPage).MustWaitLoad()
+				page := engineBrowser.MustPage(request.Target).MustWaitLoad()
 
-				/**
-				 * If website is HTML only and not rendered with JavaScript
-				 * let skip browser to disable download the resources like
-				 * image, stylesheet, media, ping, font
-				 */
+				// If website is HTML only and not rendered with JavaScript
+				// let skip browser to disable download the resources like
+				// image, stylesheet, media, ping, font
 				if request.HtmlOnly != "" {
 					router := page.HijackRequests()
 
@@ -270,40 +281,29 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	log.Println("[ Engine ] Page #" + pageId + " closed")
 }
 
-func HandleFlowLoop(flow []types.Flow, start int, total int, page *rod.Page, html map[string]string) bool {
-	if start < total {
+// TODO Comment
+// ....
+func HandleFlowLoop(flow []types.Flow, current int, total int, page *rod.Page, html map[string]string) bool {
+	if current < total {
 		unique := uuid.New().String()
 		pageId := unique[len(unique)-12:]
-
-		isFinish := HandleStepLoop(flow[start].Step, 0, len(flow[start].Step), page, pageId, html)
-
-		if isFinish {
-			return HandleFlowLoop(flow, start+1, total, page, html)
-		}
-	}
-
-	if start == total {
-		return true
-	}
-
-	return false
-}
-
-func HandleStepLoop(step []types.Step, start int, total int, page *rod.Page, pageId string, html map[string]string) bool {
-	if start == total {
-		return true
-	} else {
-		stepData := step[start]
+		flowData := flow[current]
 
 		var hasElement bool = false
 		var detectedElement *rod.Element
 
-		if stepData.Element != "" {
+		// TODO Comment
+		// ....
+
+		if flowData.Selector.Selector != "" {
 			hasElement = true
 		}
 
+		// TODO Comment
+		// ....
+
 		if hasElement {
-			_, element, errorMessage := page.Has(stepData.Element)
+			_, element, errorMessage := page.Has(flowData.Selector.Selector)
 
 			if errorMessage != nil {
 				panic(errorMessage)
@@ -312,27 +312,68 @@ func HandleStepLoop(step []types.Step, start int, total int, page *rod.Page, pag
 			detectedElement = element
 		}
 
-		if stepData.Delay != 0 {
-			var sleepTime int = int(stepData.Delay)
-			time.Sleep(time.Second * time.Duration(sleepTime))
-		} else if stepData.Write != "" {
-			detectedElement.MustInput(stepData.Write)
-		} else if stepData.Action == "Enter" {
-			detectedElement.MustPress(input.Enter)
-		} else if stepData.Action == "Click" {
-			detectedElement.MustClick()
-		} else if stepData.Screenshot.Path != "" {
-			screenshotPath := downloadDirectory + pageId + "-" + stepData.Screenshot.Path
+		if flowData.Delay != 0 {
 
-			if stepData.Screenshot.Clip.Top != 0 || stepData.Screenshot.Clip.Left != 0 || stepData.Screenshot.Clip.Width != 0 || stepData.Screenshot.Clip.Height != 0 {
+			// TODO Comment
+			// ....
+
+			var sleepTime int = int(flowData.Delay)
+			time.Sleep(time.Second * time.Duration(sleepTime))
+
+		} else if flowData.Navigate != "" {
+
+			// TODO Comment
+			// ....
+
+			err := rod.Try(func() {
+				page.Timeout(defaultTimeout).MustElementR("a", flowData.Navigate).MustClick()
+			})
+
+			if errors.Is(err, context.DeadlineExceeded) {
+				log.Println("[ Engine ] Element " + flowData.Navigate + " selector not found")
+			}
+
+		} else if flowData.Selector.Fill != "" {
+
+			// TODO Comment
+			// ....
+
+			detectedElement.MustInput(flowData.Selector.Fill)
+
+		} else if flowData.Selector.Do == "Enter" {
+
+			// TODO Comment
+			// ....
+
+			detectedElement.MustPress(input.Enter)
+
+		} else if flowData.Selector.Do == "Click" {
+
+			// TODO Comment
+			// ....
+
+			detectedElement.MustClick()
+
+		} else if flowData.Screenshot.Path != "" {
+
+			// TODO Comment
+			// ....
+
+			screenshotPath := downloadDirectory + pageId + "-" + flowData.Screenshot.Path
+
+			if flowData.Screenshot.Clip.Top != 0 || flowData.Screenshot.Clip.Left != 0 || flowData.Screenshot.Clip.Width != 0 || flowData.Screenshot.Clip.Height != 0 {
+
+				// TODO Comment
+				// ....
+
 				image, _ := page.Screenshot(true, &proto.PageCaptureScreenshot{
 					Format:  proto.PageCaptureScreenshotFormatJpeg,
 					Quality: gson.Int(100),
 					Clip: &proto.PageViewport{
-						X:      stepData.Screenshot.Clip.Top,
-						Y:      stepData.Screenshot.Clip.Left,
-						Width:  stepData.Screenshot.Clip.Width,
-						Height: stepData.Screenshot.Clip.Height,
+						X:      flowData.Screenshot.Clip.Top,
+						Y:      flowData.Screenshot.Clip.Left,
+						Width:  flowData.Screenshot.Clip.Width,
+						Height: flowData.Screenshot.Clip.Height,
 						Scale:  1,
 					},
 					FromSurface: true,
@@ -340,16 +381,83 @@ func HandleStepLoop(step []types.Step, start int, total int, page *rod.Page, pag
 
 				_ = utils.OutputFile(screenshotPath, image)
 			} else {
+
+				// TODO Comment
+				// ....
+
 				page.MustScreenshot(screenshotPath)
 			}
+
+		} else if len(flowData.Take) > 0 {
+
+			// TODO Comment
+			// ....
+
+			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, html)
+
 		} else {
 			// noop
 		}
 
-		return HandleStepLoop(step, start+1, total, page, pageId, html)
+		return HandleFlowLoop(flow, current+1, total, page, html)
 	}
+
+	if current == total {
+		return true
+	}
+
+	return false
 }
 
+// TODO Comment
+// ....
+
+func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, html map[string]string) bool {
+	if current < total {
+		var takeData = take[current]
+		var fieldName string = takeData.Name
+		var fieldElement rod.Element
+
+		err := rod.Try(func() {
+			if takeData.Selector != "" {
+				fieldElement = *page.Timeout(defaultTimeout).MustElement(takeData.Selector)
+			}
+
+			if takeData.Contains.Selector != "" {
+				fieldElement = *page.Timeout(defaultTimeout).MustElementR(takeData.Contains.Selector, takeData.Contains.Text)
+			}
+
+			if takeData.NextToSelector != "" {
+				fieldElement = *page.Timeout(defaultTimeout).MustElement(takeData.NextToSelector).MustNext()
+			}
+
+			if takeData.NextToContains.Selector != "" {
+				fieldElement = *page.Timeout(defaultTimeout).MustElementR(takeData.NextToContains.Selector, takeData.NextToContains.Text).MustNext()
+			}
+
+			if takeData.Parse == "html" {
+				html[fieldName] = string(fieldElement.MustHTML())
+			} else {
+				html[fieldName] = string(fieldElement.MustText())
+			}
+		})
+
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Println("[ Engine ] Element " + fieldName + " selector not found")
+		}
+
+		HandleTakeLoop(take, current+1, total, page, html)
+	}
+
+	if current == total {
+		return true
+	}
+
+	return false
+}
+
+// TODO Comment
+// ....
 func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
 	log.Println("[ Engine ] Page #" + pageId + " sending result")
 
@@ -359,4 +467,6 @@ func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
 	json.NewEncoder(w).Encode(data)
 }
 
+// TODO Comment
+// ....
 func Noop(w http.ResponseWriter, r *http.Request) {}

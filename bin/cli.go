@@ -63,9 +63,9 @@ func main() {
 
 					log.Println("[Owl] Sending " + flowData + " config to the server")
 					request := types.Request{
-						Engine:  config.Engine,
-						WebPage: config.WebPage,
-						Flow:    config.Flow,
+						Engine: config.Engine,
+						Target: config.Target,
+						Flow:   config.Flow,
 					}
 
 					sendRequest(request)

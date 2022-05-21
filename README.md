@@ -39,40 +39,74 @@ $ go run bin/cli.go
 In below example we'll search keyword **scraper** on Google and extract the content to JSON
 
 ```yaml
+# Engine Server
 engine: http://127.0.0.1:3000
-webpage: https://google.com
 
-# Basic Flow
+# Target Website
+target: https://en.wikipedia.org/wiki/Zebra
+
+# Flow Name
+name: Find Zebra
+
+# Flow Process
 flow:
-  - name: Page 1
-    step:
 
-      # Test searching
-      - element: .gLFyf.gsfi
-        write: scraper
-      - element: .gLFyf.gsfi
-        action: Enter
-      
-      # Wait until 2 (second)
-      - delay: 2
+  # Get data
+  - take:
 
-      # Remove text on search field
-      - extract:
-          element: .kno-rdesc
-          name: sample-1
-          result: html
+      # Get heading page as heading
+      - selector: "#firstHeading"
+        name: heading
+        parse: text
 
-      # Remove text on search field
-      - extract:
-          element: .hgKElc
-          name: sample-2
-          result: text
+      # Test add unknown element
+      - next_to_contains:
+          selector: "td"
+          text: ".thumb.tright"
+        name: description
+        parse: text
 
-      # Remove text on search field
-      - extract:
-          element: .Wt5Tfe
-          result: text
+  # Get data
+  - take:
 
+      # Get value next to kingdom element
+      - next_to_contains:
+          selector: "td"
+          text: "Kingdom:"
+        name: kingdom
+        parse: text
+
+      # Get value next to phylum element
+      - next_to_contains:
+          selector: "td"
+          text: "Phylum:"
+        name: phylum
+        parse: text
+
+      # Get value next to class element
+      - next_to_contains:
+          selector: "td"
+          text: "Class:"
+        name: class
+        parse: text
+
+  # Finding anchor with text "Fauna of Africa" and click it
+  - navigate: "Fauna of Africa"
+
+  # Get data
+  - take:
+
+      # Get heading page as sub heading
+      - selector: "#firstHeading"
+        name: sub_heading
+        parse: text
+
+      # Test add unknown element
+      - next_to_contains:
+          selector: "td"
+          text: ".thumb.tright"
+        name: sub_description
+        parse: text
 ```
 
 And then you can see the result of this **flow** at `resources/json` directory, with log for every process available on `logs` directory
