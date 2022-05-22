@@ -21,5 +21,5 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/leakless v0.7.0 // indirect
-	golang.org/x/net v0.0.0-20210916014120-12bc252f5db8 // indirect
+	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
 )

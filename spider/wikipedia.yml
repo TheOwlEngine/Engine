@@ -24,7 +24,7 @@ flow:
       # Test add unknown element
       - next_to_contains:
           selector: "td"
-          text: ".thumb.tright"
+          identifier: ".thumb.tright"
         name: description
         parse: text
 
@@ -34,21 +34,21 @@ flow:
       # Get value next to kingdom element
       - next_to_contains:
           selector: "td"
-          text: "Kingdom:"
+          identifier: "Kingdom:"
         name: kingdom
         parse: text
 
       # Get value next to phylum element
       - next_to_contains:
           selector: "td"
-          text: "Phylum:"
+          identifier: "Phylum:"
         name: phylum
         parse: text
 
       # Get value next to class element
       - next_to_contains:
           selector: "td"
-          text: "Class:"
+          identifier: "Class:"
         name: class
         parse: text
 
@@ -66,6 +66,6 @@ flow:
       # Test add unknown element
       - next_to_contains:
           selector: "td"
-          text: ".thumb.tright"
+          identifier: ".thumb.tright"
         name: sub_description
         parse: text

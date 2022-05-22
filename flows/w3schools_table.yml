@@ -2,16 +2,10 @@
 engine: http://127.0.0.1:3000
 
 # Target Website
-target: https://www.w3schools.com/css/default.asp
+target: https://www.w3schools.com/css/css_table.asp
 
 # Flow Name
-name: W3Schools Pagination
-
-# Repeat Pagination
-repeat: 20
-
-# Enable Pagination
-paginate: true
+name: W3Schools Table
 
 # Flow Process
 flow:
@@ -29,6 +23,11 @@ flow:
         name: introduction
         parse: text
       
-  - selector:
-      identifier: .nextprev .w3-right
-      do: Click
+      # Get table
+      - table:
+          name: customer_list
+          selector: "#customers"
+          fields:
+            - Company
+            - Contact
+            - Country

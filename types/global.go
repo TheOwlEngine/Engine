@@ -7,7 +7,7 @@ type Response struct {
 	Target  string                    `json:"target,omitempty"`
 	Engine  string                    `json:"engine,omitempty"`
 	Message string                    `json:"message,omitempty"`
-	Html    map[int]map[string]string `json:"html,omitempty"`
+	Result  map[int]map[string]string `json:"html,omitempty"`
 	Path    string                    `json:"path,omitempty"`
 }
 
@@ -23,16 +23,16 @@ type Config struct {
 
 type Flow struct {
 	Take       []Element  `yaml:"take"`
-	Selector   Selector   `yaml:"selector"`
+	Form       Form       `yaml:"form"`
 	Navigate   string     `yaml:"navigate"`
 	Delay      float64    `yaml:"delay"`
 	Screenshot Screenshot `yaml:"screenshot"`
 }
 
-type Selector struct {
-	Identifier string `yaml:"identifier"`
-	Fill       string `yaml:"fill"`
-	Do         string `yaml:"do"`
+type Form struct {
+	Selector string `yaml:"selector"`
+	Fill     string `yaml:"fill"`
+	Do       string `yaml:"do"`
 }
 
 type Element struct {
@@ -42,11 +42,18 @@ type Element struct {
 	NextToContains ElementContains `yaml:"next_to_contains"`
 	Name           string          `yaml:"name"`
 	Parse          string          `yaml:"parse"`
+	Table          ElementTable    `yaml:"table"`
 }
 
 type ElementContains struct {
-	Selector string `yaml:"selector"`
-	Text     string `yaml:"text"`
+	Selector   string `yaml:"selector"`
+	Identifier string `yaml:"identifier"`
+}
+
+type ElementTable struct {
+	Selector string   `yaml:"selector"`
+	Name     string   `yaml:"name"`
+	Fields   []string `yaml:"fields"`
 }
 
 type Screenshot struct {

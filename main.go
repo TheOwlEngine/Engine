@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"log"
@@ -28,6 +29,7 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/urfave/cli"
 	"github.com/ysmood/gson"
+	"golang.org/x/net/html"
 )
 
 // var engineSession string
@@ -206,12 +208,12 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Println("[ Engine ] Add flow for page #" + pageId)
+		log.Println("[ Engine ] Create page #" + pageId + "")
 
 		rootChannel := make(chan interface{})
 
 		go func(rootChannel chan interface{}) {
-			log.Println("[ Engine ] Page #" + pageId + " running flow ")
+			log.Println("[ Engine ] Page #" + pageId + " running flow")
 
 			if len(request.Flow) > 0 {
 
@@ -237,7 +239,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					go router.Run()
 				}
 
-				html := make(map[int]map[string]string)
+				htmlString := make(map[int]map[string]string)
 
 				pageRepeated := 1
 
@@ -245,7 +247,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					pageRepeated = request.Repeat
 				}
 
-				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, html)
+				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, htmlString)
 
 				if isFinish {
 					page.MustClose()
@@ -257,7 +259,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					Target: request.Target,
 					Engine: request.Engine,
 					Code:   200,
-					Html:   html,
+					Result: htmlString,
 				}
 
 				slugName := slug.Make(request.Name)
@@ -280,23 +282,23 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 		result := <-rootChannel
 
 		HandleResponse(w, result, pageId)
+
+		log.Println("[ Engine ] Page #" + pageId + " closed")
 	default:
 		resultJson := types.Response{
 			Code:    403,
 			Message: "Method not allowed for this request",
 		}
 
-		HandleResponse(w, resultJson, pageId)
+		HandleResponse(w, resultJson, "")
 	}
-
-	log.Println("[ Engine ] Page #" + pageId + " closed")
 }
 
 // TODO Comment
 // ....
-func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, html map[int]map[string]string) bool {
+func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, htmlString map[int]map[string]string) bool {
 	if pageIndex < pageMustRepeat {
-		html[pageIndex] = make(map[string]string)
+		htmlString[pageIndex] = make(map[string]string)
 
 		var allowToNavigate bool = true
 
@@ -308,12 +310,10 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 			page.Navigate(request.Target)
 		}
 
-		log.Printf("Allow to navigate %t with URL %s, index %d, requested %t, must repeat %d", allowToNavigate, request.Target, pageIndex, request.Paginate, pageMustRepeat)
-
-		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, html)
+		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, htmlString)
 
 		if isFinish {
-			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, html)
+			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, htmlString)
 		} else {
 			return false
 		}
@@ -326,7 +326,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 	return false
 }
 
-func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, html map[int]map[string]string) bool {
+func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlString map[int]map[string]string) bool {
 	if current < total {
 		flowData := flow[current]
 
@@ -336,7 +336,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 		// TODO Comment
 		// ....
 
-		if flowData.Selector.Identifier != "" {
+		if flowData.Form.Selector != "" {
 			hasElement = true
 		}
 
@@ -344,10 +344,10 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 		// ....
 
 		if hasElement {
-			_, element, errorMessage := page.Has(flowData.Selector.Identifier)
+			_, element, errorMessage := page.Has(flowData.Form.Selector)
 
 			if errorMessage != nil {
-				log.Println("[ Engine ] Element " + flowData.Selector.Identifier + " not found")
+				log.Println("[ Engine ] P " + flowData.Form.Selector + " not found")
 			}
 
 			detectedElement = element
@@ -371,24 +371,24 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			})
 
 			if errors.Is(err, context.DeadlineExceeded) {
-				log.Println("[ Engine ] Element " + flowData.Navigate + " selector not found")
+				log.Println("[ Engine ] P " + flowData.Navigate + " not found")
 			}
 
-		} else if flowData.Selector.Fill != "" {
+		} else if flowData.Form.Fill != "" {
 
 			// TODO Comment
 			// ....
 
-			detectedElement.MustInput(flowData.Selector.Fill)
+			detectedElement.MustInput(flowData.Form.Fill)
 
-		} else if flowData.Selector.Do == "Enter" {
+		} else if flowData.Form.Do == "Enter" {
 
 			// TODO Comment
 			// ....
 
 			detectedElement.MustPress(input.Enter)
 
-		} else if flowData.Selector.Do == "Click" {
+		} else if flowData.Form.Do == "Click" {
 
 			// TODO Comment
 			// ....
@@ -400,7 +400,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			})
 
 			if errors.Is(err, context.DeadlineExceeded) {
-				log.Println("[ Engine ] Body element not detected, can't wait it's load")
+				log.Println("[ Engine ] Page #" + pageId + " can't wait to body loaded")
 			}
 
 		} else if flowData.Screenshot.Path != "" {
@@ -442,13 +442,13 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			// TODO Comment
 			// ....
 
-			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageIndex, html)
+			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageId, pageIndex, htmlString)
 
 		} else {
 			// noop
 		}
 
-		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, html)
+		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, htmlString)
 	}
 
 	if current == total {
@@ -461,7 +461,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 // TODO Comment
 // ....
 
-func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageIndex int, html map[int]map[string]string) bool {
+func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlString map[int]map[string]string) bool {
 	if current < total {
 		var takeData = take[current]
 		var fieldName string = takeData.Name
@@ -473,7 +473,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 			}
 
 			if takeData.Contains.Selector != "" {
-				fieldElement = *page.Timeout(defaultTimeout).MustElementR(takeData.Contains.Selector, takeData.Contains.Text)
+				fieldElement = *page.Timeout(defaultTimeout).MustElementR(takeData.Contains.Selector, takeData.Contains.Identifier)
 			}
 
 			if takeData.NextToSelector != "" {
@@ -481,21 +481,45 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 			}
 
 			if takeData.NextToContains.Selector != "" {
-				fieldElement = *page.Timeout(defaultTimeout).MustElementR(takeData.NextToContains.Selector, takeData.NextToContains.Text).MustNext()
+				fieldElement = *page.Timeout(defaultTimeout).MustElementR(takeData.NextToContains.Selector, takeData.NextToContains.Identifier).MustNext()
 			}
 
 			if takeData.Parse == "html" {
-				html[pageIndex][fieldName] = string(fieldElement.MustHTML())
-			} else {
-				html[pageIndex][fieldName] = string(fieldElement.MustText())
+				htmlString[pageIndex][fieldName] = string(fieldElement.MustHTML())
+			}
+
+			if takeData.Parse == "text" {
+				htmlString[pageIndex][fieldName] = string(fieldElement.MustText())
 			}
 		})
 
-		if errors.Is(err, context.DeadlineExceeded) {
-			log.Println("[ Engine ] Element " + fieldName + " selector not found")
+		if takeData.Table.Selector != "" {
+			tableString := page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector).MustHTML()
+			tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
+			tableElement := html.NewTokenizer(tableToken)
+
+			//                       row     column value
+			tableContent := make(map[int]map[string]string)
+
+			var tableRowCounter int = 0
+			var tableColumnCounter int = 0
+
+			tableContent = extractTable(tableElement, tableContent, takeData.Table.Fields, tableRowCounter, tableColumnCounter)
+
+			log.Printf("finish %v", tableContent)
+
+			jsonTable, _ := json.Marshal(tableContent)
+
+			htmlString[pageIndex][takeData.Table.Name] = string(jsonTable)
 		}
 
-		HandleTakeLoop(take, current+1, total, page, pageIndex, html)
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Println("[ Engine ] Page #" + pageId + " element " + fieldElement.String() + " not found")
+		} else if err != nil {
+			panic(err)
+		}
+
+		HandleTakeLoop(take, current+1, total, page, pageId, pageIndex, htmlString)
 	}
 
 	if current == total {
@@ -505,10 +529,61 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 	return false
 }
 
+func extractTable(tableElement *html.Tokenizer, tableContent map[int]map[string]string, tableFields []string, tableRowCounter int, tableColumnCounter int) map[int]map[string]string {
+	var isContinue bool = true
+	tableRow := tableElement.Next()
+
+	if tableRow == html.StartTagToken {
+		tableData := tableElement.Token()
+
+		if tableData.Data == "tr" {
+			tableContent[tableRowCounter] = make(map[string]string)
+			tableColumnCounter = 0
+		}
+
+		if tableData.Data == "td" {
+			inner := tableElement.Next()
+
+			if inner == html.TextToken {
+				tableText := (string)(tableElement.Text())
+				tableData := strings.TrimSpace(tableText)
+
+				columnValue := tableFields[tableColumnCounter]
+
+				tableContent[tableRowCounter][columnValue] = tableData
+			}
+		}
+	}
+
+	if tableRow == html.EndTagToken {
+		tagElement := tableElement.Token()
+
+		if tagElement.Data == "tr" {
+			tableRowCounter++
+		}
+
+		if tagElement.Data == "td" {
+			tableColumnCounter++
+		}
+
+		if tagElement.Data == "table" {
+			isContinue = false
+		}
+	}
+
+	if isContinue {
+		return extractTable(tableElement, tableContent, tableFields, tableRowCounter, tableColumnCounter)
+	} else {
+		return tableContent
+	}
+}
+
 // TODO Comment
 // ....
 func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
-	log.Println("[ Engine ] Page #" + pageId + " sending result")
+	if pageId != "" {
+		log.Println("[ Engine ] Page #" + pageId + " sending result")
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
