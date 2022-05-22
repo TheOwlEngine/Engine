@@ -7,6 +7,9 @@ target: https://en.wikipedia.org/wiki/Zebra
 # Flow Name
 name: Find Zebra
 
+# Repeat flow
+repeat: 2
+
 # Flow Process
 flow:
 

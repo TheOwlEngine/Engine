@@ -62,10 +62,14 @@ func main() {
 					}
 
 					log.Println("[Owl] Sending " + flowData + " config to the server")
-					request := types.Request{
-						Engine: config.Engine,
-						Target: config.Target,
-						Flow:   config.Flow,
+					request := types.Config{
+						Name:     config.Name,
+						Engine:   config.Engine,
+						Flow:     config.Flow,
+						HtmlOnly: config.HtmlOnly,
+						Paginate: config.Paginate,
+						Repeat:   config.Repeat,
+						Target:   config.Target,
 					}
 
 					sendRequest(request)
@@ -105,7 +109,7 @@ func readConfig(filename string) (*types.Config, error) {
 	return c, nil
 }
 
-func sendRequest(data types.Request) types.Response {
+func sendRequest(data types.Config) types.Response {
 	var result types.Response
 
 	body, _ := json.Marshal(data)

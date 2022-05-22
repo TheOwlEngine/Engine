@@ -1,31 +1,24 @@
 package types
 
-type Request struct {
-	Engine   string
-	Flow     []Flow
-	Height   float64
-	HtmlOnly string
-	Path     string
-	Timeout  float64
-	Type     string
-	Target   string
-	Width    float64
-}
-
 type Response struct {
-	Id      string            `json:"id,omitempty"`
-	Code    int               `json:"code,omitempty"`
-	Message string            `json:"message,omitempty"`
-	Html    map[string]string `json:"html,omitempty"`
-	Path    string            `json:"path,omitempty"`
+	Id      string                    `json:"id,omitempty"`
+	Code    int                       `json:"code,omitempty"`
+	Name    string                    `json:"name,omitempty"`
+	Target  string                    `json:"target,omitempty"`
+	Engine  string                    `json:"engine,omitempty"`
+	Message string                    `json:"message,omitempty"`
+	Html    map[int]map[string]string `json:"html,omitempty"`
+	Path    string                    `json:"path,omitempty"`
 }
 
 type Config struct {
-	Engine string `yaml:"engine"`
-	Target string `yaml:"target"`
-	Name   string `yaml:"name"`
-	Repeat int    `yaml:"repeat"`
-	Flow   []Flow `yaml:"flow"`
+	Name     string `yaml:"name"`
+	Engine   string `yaml:"engine"`
+	Flow     []Flow `yaml:"flow"`
+	HtmlOnly bool   `yaml:"html_only"`
+	Paginate bool   `yaml:"paginate"`
+	Repeat   int    `yaml:"repeat"`
+	Target   string `yaml:"target"`
 }
 
 type Flow struct {
@@ -37,9 +30,9 @@ type Flow struct {
 }
 
 type Selector struct {
-	Selector string `yaml:"selector"`
-	Fill     string `yaml:"fill"`
-	Do       string `yaml:"do"`
+	Identifier string `yaml:"identifier"`
+	Fill       string `yaml:"fill"`
+	Do         string `yaml:"do"`
 }
 
 type Element struct {

@@ -25,6 +25,7 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/rod/lib/utils"
 	"github.com/google/uuid"
+	"github.com/gosimple/slug"
 	"github.com/urfave/cli"
 	"github.com/ysmood/gson"
 )
@@ -194,7 +195,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 
 		// Declare a new Person struct.
-		var request types.Request
+		var request types.Config
 
 		// Try to decode the request body into the struct. If there is an error,
 		// respond to the client with the error message and a 400 status code.
@@ -214,12 +215,12 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 			if len(request.Flow) > 0 {
 
-				page := engineBrowser.MustPage(request.Target).MustWaitLoad()
+				page := engineBrowser.MustPage()
 
 				// If website is HTML only and not rendered with JavaScript
 				// let skip browser to disable download the resources like
 				// image, stylesheet, media, ping, font
-				if request.HtmlOnly != "" {
+				if request.HtmlOnly {
 					router := page.HijackRequests()
 
 					// since we are only hijacking a specific page, even using the "*" won't affect much of the performance
@@ -236,21 +237,31 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					go router.Run()
 				}
 
-				html := make(map[string]string)
+				html := make(map[int]map[string]string)
 
-				isFinish := HandleFlowLoop(request.Flow, 0, len(request.Flow), page, html)
+				pageRepeated := 1
+
+				if request.Repeat > 0 {
+					pageRepeated = request.Repeat
+				}
+
+				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, html)
 
 				if isFinish {
 					page.MustClose()
 				}
 
 				resultJson := types.Response{
-					Id:   pageId,
-					Code: 200,
-					Html: html,
+					Id:     pageId,
+					Name:   request.Name,
+					Target: request.Target,
+					Engine: request.Engine,
+					Code:   200,
+					Html:   html,
 				}
 
-				jsonPath := jsonDirectory + pageId + ".json"
+				slugName := slug.Make(request.Name)
+				jsonPath := jsonDirectory + slugName + "-" + pageId + ".json"
 				file, _ := json.MarshalIndent(resultJson, "", " ")
 
 				_ = ioutil.WriteFile(jsonPath, file, 0644)
@@ -283,10 +294,40 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 // TODO Comment
 // ....
-func HandleFlowLoop(flow []types.Flow, current int, total int, page *rod.Page, html map[string]string) bool {
+func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, html map[int]map[string]string) bool {
+	if pageIndex < pageMustRepeat {
+		html[pageIndex] = make(map[string]string)
+
+		var allowToNavigate bool = true
+
+		if pageIndex > 0 && request.Paginate {
+			allowToNavigate = false
+		}
+
+		if allowToNavigate {
+			page.Navigate(request.Target)
+		}
+
+		log.Printf("Allow to navigate %t with URL %s, index %d, requested %t, must repeat %d", allowToNavigate, request.Target, pageIndex, request.Paginate, pageMustRepeat)
+
+		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, html)
+
+		if isFinish {
+			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, html)
+		} else {
+			return false
+		}
+	}
+
+	if pageIndex == pageMustRepeat {
+		return true
+	}
+
+	return false
+}
+
+func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, html map[int]map[string]string) bool {
 	if current < total {
-		unique := uuid.New().String()
-		pageId := unique[len(unique)-12:]
 		flowData := flow[current]
 
 		var hasElement bool = false
@@ -295,7 +336,7 @@ func HandleFlowLoop(flow []types.Flow, current int, total int, page *rod.Page, h
 		// TODO Comment
 		// ....
 
-		if flowData.Selector.Selector != "" {
+		if flowData.Selector.Identifier != "" {
 			hasElement = true
 		}
 
@@ -303,10 +344,10 @@ func HandleFlowLoop(flow []types.Flow, current int, total int, page *rod.Page, h
 		// ....
 
 		if hasElement {
-			_, element, errorMessage := page.Has(flowData.Selector.Selector)
+			_, element, errorMessage := page.Has(flowData.Selector.Identifier)
 
 			if errorMessage != nil {
-				panic(errorMessage)
+				log.Println("[ Engine ] Element " + flowData.Selector.Identifier + " not found")
 			}
 
 			detectedElement = element
@@ -354,6 +395,14 @@ func HandleFlowLoop(flow []types.Flow, current int, total int, page *rod.Page, h
 
 			detectedElement.MustClick()
 
+			err := rod.Try(func() {
+				page.Timeout(defaultTimeout).MustElement("body").MustWaitLoad()
+			})
+
+			if errors.Is(err, context.DeadlineExceeded) {
+				log.Println("[ Engine ] Body element not detected, can't wait it's load")
+			}
+
 		} else if flowData.Screenshot.Path != "" {
 
 			// TODO Comment
@@ -393,13 +442,13 @@ func HandleFlowLoop(flow []types.Flow, current int, total int, page *rod.Page, h
 			// TODO Comment
 			// ....
 
-			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, html)
+			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageIndex, html)
 
 		} else {
 			// noop
 		}
 
-		return HandleFlowLoop(flow, current+1, total, page, html)
+		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, html)
 	}
 
 	if current == total {
@@ -412,7 +461,7 @@ func HandleFlowLoop(flow []types.Flow, current int, total int, page *rod.Page, h
 // TODO Comment
 // ....
 
-func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, html map[string]string) bool {
+func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageIndex int, html map[int]map[string]string) bool {
 	if current < total {
 		var takeData = take[current]
 		var fieldName string = takeData.Name
@@ -436,9 +485,9 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 			}
 
 			if takeData.Parse == "html" {
-				html[fieldName] = string(fieldElement.MustHTML())
+				html[pageIndex][fieldName] = string(fieldElement.MustHTML())
 			} else {
-				html[fieldName] = string(fieldElement.MustText())
+				html[pageIndex][fieldName] = string(fieldElement.MustText())
 			}
 		})
 
@@ -446,7 +495,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 			log.Println("[ Engine ] Element " + fieldName + " selector not found")
 		}
 
-		HandleTakeLoop(take, current+1, total, page, html)
+		HandleTakeLoop(take, current+1, total, page, pageIndex, html)
 	}
 
 	if current == total {

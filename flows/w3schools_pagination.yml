@@ -1,0 +1,34 @@
+# Engine Server
+engine: http://127.0.0.1:3000
+
+# Target Website
+target: https://www.w3schools.com/css/default.asp
+
+# Flow Name
+name: W3Schools Pagination
+
+# Repeat Pagination
+repeat: 20
+
+# Enable Pagination
+paginate: true
+
+# Flow Process
+flow:
+
+  # Get data
+  - take:
+
+      # Get heading page as heading
+      - selector: h1
+        name: title
+        parse: text
+
+      # Get heading page as heading
+      - selector: .intro
+        name: introduction
+        parse: text
+      
+  - selector:
+      identifier: .nextprev .w3-right
+      do: Click

@@ -4,10 +4,12 @@ Descriptive scraper engine based on Chromium browser
 
 ## Roadmap
 
-- [x] scraper Engine Server (single Browser, multiple Tabs)
+- [x] Scraper Engine Server (single Browser, multiple Tabs)
 - [x] Command line connector
 - [x] Multiple flow configuration (Yaml)
 - [x] Web Extraction (HTML & Text)
+- [x] Add repeat & paginate parameter
+- [x] Nullish / Unknown element handling
 - [ ] Web Extraction (Table & Custom Format)
 - [ ] Better console output
 - [ ] Support Windows architecture
