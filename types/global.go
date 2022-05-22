@@ -51,9 +51,14 @@ type ElementContains struct {
 }
 
 type ElementTable struct {
-	Selector string   `yaml:"selector"`
-	Name     string   `yaml:"name"`
-	Fields   []string `yaml:"fields"`
+	Selector string              `yaml:"selector"`
+	Name     string              `yaml:"name"`
+	Fields   []ElementTableField `yaml:"fields"`
+}
+
+type ElementTableField struct {
+	Index int    `yaml:"index"`
+	Name  string `yaml:"name"`
 }
 
 type Screenshot struct {

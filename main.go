@@ -534,7 +534,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 	return false
 }
 
-func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string, tableFields []string, tableRowCounter int, tableColumnCounter int) []map[string]string {
+func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string, tableFields []types.ElementTableField, tableRowCounter int, tableColumnCounter int) []map[string]string {
 	var isContinue bool = true
 	tableRow := tableElement.Next()
 
@@ -550,12 +550,16 @@ func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string
 			inner := tableElement.Next()
 
 			if inner == html.TextToken {
-				tableText := (string)(tableElement.Text())
-				tableData := strings.TrimSpace(tableText)
+				for _, field := range tableFields {
+					if tableColumnCounter == field.Index {
+						tableText := (string)(tableElement.Text())
+						tableData := strings.TrimSpace(tableText)
 
-				columnValue := tableFields[tableColumnCounter]
+						columnValue := tableFields[field.Index].Name
 
-				tableContent[tableRowCounter][columnValue] = tableData
+						tableContent[tableRowCounter][columnValue] = tableData
+					}
+				}
 			}
 		}
 	}

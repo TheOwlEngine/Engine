@@ -28,6 +28,9 @@ flow:
           name: customer_list
           selector: "#customers"
           fields:
-            - company
-            - contact
-            - country
+            - index: 1
+              name: company
+            - index: 0
+              name: country
+            - index: 2
+              name: contact
