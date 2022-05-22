@@ -4,13 +4,14 @@ Descriptive scraper engine based on Chromium browser
 
 ## Roadmap
 
-- [x] Scraper Engine Server (single Browser, multiple Tabs)
-- [x] Command line connector
-- [x] Multiple flow configuration (Yaml)
+- [x] Base Engine (single Browser, multiple Tabs)
+- [x] CLI program to read flow(s) file
+- [x] Multiple flow configuration (YAML)
 - [x] Web Extraction (HTML & Text)
 - [x] Add repeat & paginate parameter
 - [x] Nullish / Unknown element handling
-- [ ] Web Extraction (Table & Custom Format)
+- [x] Web Extraction (Table Format)
+- [x] Handling environment on flow configuration
 - [ ] Better console output
 - [ ] Support Windows architecture
 - [ ] Install from Go Package / Github
@@ -45,10 +46,10 @@ In below example we'll search keyword **scraper** on Google and extract the cont
 engine: http://127.0.0.1:3000
 
 # Target Website
-target: https://en.wikipedia.org/wiki/Zebra
+target: https://www.w3schools.com/css/css_table.asp
 
 # Flow Name
-name: Find Zebra
+name: W3Schools Table
 
 # Flow Process
 flow:
@@ -57,63 +58,57 @@ flow:
   - take:
 
       # Get heading page as heading
-      - selector: "#firstHeading"
-        name: heading
+      - selector: h1
+        name: title
         parse: text
 
-      # Test add unknown element
-      - next_to_contains:
-          selector: "td"
-          text: ".thumb.tright"
-        name: description
+      # Get heading page as heading
+      - selector: .intro
+        name: introduction
         parse: text
-
-  # Get data
-  - take:
-
-      # Get value next to kingdom element
-      - next_to_contains:
-          selector: "td"
-          text: "Kingdom:"
-        name: kingdom
-        parse: text
-
-      # Get value next to phylum element
-      - next_to_contains:
-          selector: "td"
-          text: "Phylum:"
-        name: phylum
-        parse: text
-
-      # Get value next to class element
-      - next_to_contains:
-          selector: "td"
-          text: "Class:"
-        name: class
-        parse: text
-
-  # Finding anchor with text "Fauna of Africa" and click it
-  - navigate: "Fauna of Africa"
-
-  # Get data
-  - take:
-
-      # Get heading page as sub heading
-      - selector: "#firstHeading"
-        name: sub_heading
-        parse: text
-
-      # Test add unknown element
-      - next_to_contains:
-          selector: "td"
-          text: ".thumb.tright"
-        name: sub_description
-        parse: text
+      
+      # Get table
+      - table:
+          name: customer_list
+          selector: "#customers"
+          fields:
+            - index: 1
+              name: company
+            - index: 0
+              name: country
+            - index: 2
+              name: contact
 ```
 
-And then you can see the result of this **flow** at `resources/json` directory, with log for every process available on `logs` directory
+Scraper result
 
-> You can see another example **flow** on the `flows` directory
+```json
+{
+    "id": "8498d58104d5",
+    "code": 200,
+    "name": "W3Schools Table",
+    "target": "https://www.w3schools.com/css/css_table.asp",
+    "engine": "http://127.0.0.1:3000",
+    "html": {
+        "0": {
+            "customer_list": [
+                {
+                    "company": "Alfreds Futterkiste",
+                    "contact": "Germany",
+                    "country": "Maria Anders"
+                },
+                ...
+            ],
+            "introduction": "The look of an HTML table can be greatly improved with CSS:",
+            "title": "CSS Tables"
+        }
+    }
+}
+```
+
+You can see a detailed result of this **flow** at `resources/json` directory, with log for every process available on `logs` directory.
+
+> You can see another example on the `flows` directory
 
 ## License
 
