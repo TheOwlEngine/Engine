@@ -8,9 +8,9 @@ flow:
 
       # Test searching
       - element: '[name="username"]'
-        write: username
+        write: $USERNAME
       - element: '[name="password"]'
-        write: password
+        write: $PASSWORD
       - element: '[value="login"]'
         action: Click
       

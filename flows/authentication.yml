@@ -1,0 +1,27 @@
+# Engine Server
+engine: http://127.0.0.1:3000
+
+# Target Website
+target: https://www.stealmylogin.com/demo.html
+
+# Flow Name
+name: Test Login
+
+# Flow Process
+flow:
+
+  - form:
+      selector: '[name="username"]'
+      fill: $SAMPLE_ENV_USERNAME
+
+  - form:
+      selector: '[name="password"]'
+      fill: $SAMPLE_ENV_PASSWORD
+
+  - delay: 10
+
+  - form:
+      selector: '[value="login"]'
+      do: Click
+
+  - delay: 10

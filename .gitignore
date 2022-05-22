@@ -14,13 +14,21 @@
 # Dependency directories (remove the comment below to include it)
 vendor/
 
-# WhatsApp Session
+# Build directory
 build/*
+
+# Log directory
 logs/*
+
+# Resources directory
 resources/download/*
 resources/json/*
 
+# Keep some files
 !build/.gitkeep
 !logs/.gitkeep
 !resources/download/.gitkeep
 !resources/json/.gitkeep
+
+# Env
+.env

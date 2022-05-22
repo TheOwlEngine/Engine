@@ -27,6 +27,7 @@ import (
 	"github.com/go-rod/rod/lib/utils"
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
+	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
 	"github.com/ysmood/gson"
 	"golang.org/x/net/html"
@@ -52,6 +53,8 @@ var defaultTimeout time.Duration
 // TODO Comment
 // ....
 func main() {
+	godotenv.Load(".env")
+
 	defaultTimeout = 3 * time.Second
 
 	styler := style.NewConsoleStyler()
@@ -84,6 +87,8 @@ func main() {
 
 	log.SetOutput(multiLogger)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
+
+	log.Println(os.Getenv("SAMPLE_ENV_USERNAME"))
 
 	app := &cli.App{
 		Name:  "Engine",
@@ -382,7 +387,11 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			// TODO Comment
 			// ....
 
-			detectedElement.MustInput(flowData.Form.Fill)
+			if strings.Contains(flowData.Form.Fill, "$") {
+				detectedElement.MustInput(os.Getenv(strings.ReplaceAll(flowData.Form.Fill, "$", "")))
+			} else {
+				detectedElement.MustInput(flowData.Form.Fill)
+			}
 
 		} else if flowData.Form.Do == "Enter" {
 
