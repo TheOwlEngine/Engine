@@ -21,13 +21,13 @@ build/*
 logs/*
 
 # Resources directory
-resources/download/*
+resources/screenshots/*
 resources/json/*
 
 # Keep some files
 !build/.gitkeep
 !logs/.gitkeep
-!resources/download/.gitkeep
+!resources/screenshots/.gitkeep
 !resources/json/.gitkeep
 
 # Env

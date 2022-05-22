@@ -1,0 +1,15 @@
+# Engine Server
+engine: http://127.0.0.1:3000
+
+# Target Website
+target: https://google.com
+
+# Flow Name
+name: Basic Screenshot
+
+# Flow Process
+flow:
+
+  # Take a screenshot
+  - screenshot:
+      path: screenshot.jpg

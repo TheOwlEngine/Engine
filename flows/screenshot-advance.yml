@@ -1,0 +1,20 @@
+# Engine Server
+engine: http://127.0.0.1:3000
+
+# Target Website
+target: https://google.com
+
+# Flow Name
+name: Pre-defined Position & Crop Screenshot
+
+# Flow Process
+flow:
+
+  # Take a screenshot
+  - screenshot:
+      path: screenshot-advance.jpg
+      clip:
+        top: 0 
+        left: 0 
+        width: 100 
+        height: 100 

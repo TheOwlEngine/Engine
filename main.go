@@ -44,7 +44,7 @@ var useProxy bool = false
 
 var rootDirectory string
 var resourcesDirectory string
-var downloadDirectory string
+var screenshotDirectory string
 var jsonDirectory string
 var logsDirectory string
 
@@ -65,7 +65,7 @@ func main() {
 	rootDirectory, _ = os.Getwd()
 
 	resourcesDirectory = rootDirectory + "/resources/"
-	downloadDirectory = resourcesDirectory + "/download/"
+	screenshotDirectory = resourcesDirectory + "/screenshots/"
 	jsonDirectory = resourcesDirectory + "/json/"
 	logsDirectory = rootDirectory + "/logs/"
 
@@ -225,7 +225,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 				page := engineBrowser.MustPage()
 
 				// If website is HTML only and not rendered with JavaScript
-				// let skip browser to disable download the resources like
+				// let skip browser to disable screenshot the resources like
 				// image, stylesheet, media, ping, font
 				if request.HtmlOnly {
 					router := page.HijackRequests()
@@ -420,7 +420,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			// TODO Comment
 			// ....
 
-			screenshotPath := downloadDirectory + pageId + "-" + flowData.Screenshot.Path
+			screenshotPath := screenshotDirectory + pageId + "-" + flowData.Screenshot.Path
 
 			if flowData.Screenshot.Clip.Top != 0 || flowData.Screenshot.Clip.Left != 0 || flowData.Screenshot.Clip.Width != 0 || flowData.Screenshot.Clip.Height != 0 {
 
@@ -528,7 +528,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 		}
 
 		if errors.Is(err, context.DeadlineExceeded) {
-			log.Println("[ Engine ] Page #" + pageId + " element " + fieldElement.String() + " not found")
+			log.Println("[ Engine ] Page #" + pageId + " element " + fieldName + " not found")
 		} else if err != nil {
 			panic(err)
 		}

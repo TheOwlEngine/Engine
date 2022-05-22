@@ -8,7 +8,7 @@ target: https://www.w3schools.com/css/default.asp
 name: W3Schools Pagination
 
 # Repeat Pagination
-repeat: 20
+repeat: 10
 
 # Enable Pagination
 paginate: true

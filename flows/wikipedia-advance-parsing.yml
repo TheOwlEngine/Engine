@@ -5,10 +5,7 @@ engine: http://127.0.0.1:3000
 target: https://en.wikipedia.org/wiki/Zebra
 
 # Flow Name
-name: Find Zebra
-
-# Repeat flow
-repeat: 2
+name: Wikipedia Advance Parsing
 
 # Flow Process
 flow:
@@ -61,11 +58,4 @@ flow:
       # Get heading page as sub heading
       - selector: "#firstHeading"
         name: sub_heading
-        parse: text
-
-      # Test add unknown element
-      - next_to_contains:
-          selector: "td"
-          identifier: ".thumb.tright"
-        name: sub_description
         parse: text
