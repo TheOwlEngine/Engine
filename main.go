@@ -264,9 +264,12 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				slugName := slug.Make(request.Name)
 				jsonPath := jsonDirectory + slugName + "-" + pageId + ".json"
-				file, _ := json.MarshalIndent(resultJson, "", " ")
+				fileSource, _ := json.MarshalIndent(resultJson, "", " ")
 
-				_ = ioutil.WriteFile(jsonPath, file, 0644)
+				fileReplacer := strings.NewReplacer(`\"`, `"`, `"[`, `[`, `]"`, `]`)
+				fileDecode := fileReplacer.Replace(string(fileSource))
+
+				_ = ioutil.WriteFile(jsonPath, []byte(fileDecode), 0644)
 
 				rootChannel <- resultJson
 			} else {
@@ -494,21 +497,23 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 		})
 
 		if takeData.Table.Selector != "" {
-			tableString := page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector).MustHTML()
+			tableElement := page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector)
+			tableString := tableElement.MustHTML()
 			tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
-			tableElement := html.NewTokenizer(tableToken)
+			tableTokenizer := html.NewTokenizer(tableToken)
+			tableRowCount := tableElement.MustEval("() => this.querySelectorAll('tr').length").Int()
 
 			//                       row     column value
-			tableContent := make(map[int]map[string]string)
+			tableContent := make([]map[string]string, tableRowCount)
 
 			var tableRowCounter int = 0
 			var tableColumnCounter int = 0
 
-			tableContent = extractTable(tableElement, tableContent, takeData.Table.Fields, tableRowCounter, tableColumnCounter)
+			tableContent = extractTable(tableTokenizer, tableContent, takeData.Table.Fields, tableRowCounter, tableColumnCounter)
 
-			log.Printf("finish %v", tableContent)
+			resultOfTable := tableContent[1:]
 
-			jsonTable, _ := json.Marshal(tableContent)
+			jsonTable, _ := json.Marshal(resultOfTable)
 
 			htmlString[pageIndex][takeData.Table.Name] = string(jsonTable)
 		}
@@ -529,7 +534,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 	return false
 }
 
-func extractTable(tableElement *html.Tokenizer, tableContent map[int]map[string]string, tableFields []string, tableRowCounter int, tableColumnCounter int) map[int]map[string]string {
+func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string, tableFields []string, tableRowCounter int, tableColumnCounter int) []map[string]string {
 	var isContinue bool = true
 	tableRow := tableElement.Next()
 
