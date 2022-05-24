@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/fatih/color"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
@@ -80,6 +81,8 @@ func main() {
 	log.SetOutput(multiLogger)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 
+	yellow := color.New(color.FgYellow).SprintFunc()
+
 	app := &cli.App{
 		Name:  "Engine",
 		Usage: "This application will provide a browser base engine of the web scraper",
@@ -107,11 +110,11 @@ func main() {
 			if engineProxy != "" {
 				useProxy = true
 
-				log.Printf("[ Engine ] Using proxy %s", engineProxy)
+				log.Printf("%s Using proxy %s", yellow("[ Engine ]"), engineProxy)
 			}
 
 			if engineDebug {
-				log.Printf("[ Engine ] Using debug mode")
+				log.Printf("%s Using debug mode", yellow("[ Engine ]"))
 			}
 
 			var userLauncher string
@@ -130,13 +133,14 @@ func main() {
 					MustLaunch()            // launch the browser
 			}
 
+			log.Printf("%s Start browser", yellow("[ Engine ]"))
 			engineBrowser = *rod.New().ControlURL(userLauncher).MustConnect()
 
 			// Start with blank page to initialize browser
-			log.Println("[ Engine ] Create a blank page")
+			log.Printf("%s Create a blank page", yellow("[ Engine ]"))
 			engineBrowser.MustPage("about:blank")
 
-			log.Println("[ Engine ] Ready to handle multi-pages scraper")
+			log.Printf("%s Ready to handle scraper\n\n", yellow("[ Engine ]"))
 			HandleHTTPRequest()
 
 			return nil
@@ -153,6 +157,8 @@ func main() {
 // TODO Comment
 // ....
 func HandleHTTPRequest() {
+	green := color.New(color.FgGreen).SprintFunc()
+
 	http.HandleFunc("/", HandleMultiPages)
 	http.HandleFunc("/favicon.ico", Noop)
 
@@ -164,7 +170,8 @@ func HandleHTTPRequest() {
 		panic(err)
 	}
 
-	log.Printf("[ Engine ] Running on port %s", enginePort)
+	log.Printf("%s Server running on http://127.0.0.1:%s\n", green("[ Engine ]"), enginePort)
+	log.Printf("%s Waiting for connection\n", green("[ Engine ]"))
 
 	sign := make(chan os.Signal)
 
@@ -184,6 +191,8 @@ func HandleHTTPRequest() {
 func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	unique := uuid.New().String()
 	pageId := unique[len(unique)-12:]
+	yellow := color.New(color.FgYellow).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
 
 	switch r.Method {
 	case "POST":
@@ -200,12 +209,12 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Println("[ Engine ] Create page #" + pageId + "")
+		fmt.Printf("\n--- Create flow #%s - %s\n\n", green(pageId), green(request.Name))
 
 		rootChannel := make(chan interface{})
 
 		go func(rootChannel chan interface{}) {
-			log.Println("[ Engine ] Page #" + pageId + " running flow")
+			log.Printf("%s Starting flow", yellow("[ Engine ]"))
 
 			if len(request.Flow) > 0 {
 
@@ -269,7 +278,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 		HandleResponse(w, result, pageId)
 
-		log.Println("[ Engine ] Page #" + pageId + " closed")
+		log.Printf("%s Flow closed", yellow("[ Engine ]"))
 	default:
 		resultJson := types.Response{
 			Code:    403,
@@ -313,6 +322,8 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 }
 
 func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlString map[int]map[string]string) bool {
+	red := color.New(color.FgRed).SprintFunc()
+
 	if current < total {
 		flowData := flow[current]
 
@@ -333,7 +344,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			_, element, errorMessage := page.Has(flowData.Form.Selector)
 
 			if errorMessage != nil {
-				log.Println("[ Engine ] P " + flowData.Form.Selector + " not found")
+				log.Println(red("[ Engine ] element " + flowData.Form.Selector + " not found"))
 			}
 
 			detectedElement = element
@@ -357,7 +368,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			})
 
 			if errors.Is(err, context.DeadlineExceeded) {
-				log.Println("[ Engine ] P " + flowData.Navigate + " not found")
+				log.Println(red("[ Engine ] Anchor " + flowData.Navigate + " not found"))
 			}
 
 		} else if flowData.Form.Fill != "" {
@@ -390,7 +401,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			})
 
 			if errors.Is(err, context.DeadlineExceeded) {
-				log.Println("[ Engine ] Page #" + pageId + " can't wait to body loaded")
+				log.Println(red("[ Engine ] Can't wait for body loaded"))
 			}
 
 		} else if flowData.Screenshot.Path != "" {
@@ -452,6 +463,8 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 // ....
 
 func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlString map[int]map[string]string) bool {
+	red := color.New(color.FgRed).SprintFunc()
+
 	if current < total {
 		var takeData = take[current]
 		var fieldName string = takeData.Name
@@ -506,7 +519,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 		}
 
 		if errors.Is(err, context.DeadlineExceeded) {
-			log.Println("[ Engine ] Page #" + pageId + " element " + fieldName + " not found")
+			log.Println(red("[ Engine ] element " + fieldName + " not found"))
 		} else if err != nil {
 			panic(err)
 		}
@@ -577,8 +590,10 @@ func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string
 // TODO Comment
 // ....
 func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
+	yellow := color.New(color.FgYellow).SprintFunc()
+
 	if pageId != "" {
-		log.Println("[ Engine ] Page #" + pageId + " sending result")
+		log.Printf("%s Sending result", yellow("[ Engine ]"))
 	}
 
 	w.Header().Set("Content-Type", "application/json")

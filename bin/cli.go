@@ -79,11 +79,11 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 		config, errorReading := readConfig(flows[current])
 
 		if errorReading != nil {
-			log.Fatalf("%s Cannot read the config %v", red("[Owl]"), errorReading)
+			log.Fatalf(red("[Owl] Cannot read the config %v"), errorReading)
 		}
 
 		if config.Engine == "" {
-			log.Fatalf("%s Engine server is not specify, you need to specify engine server URL", red("[Owl]"))
+			log.Fatalf(red("[Owl] Engine server is not specify, you need to specify engine server URL"))
 		}
 
 		connectClient := http.Client{
@@ -92,10 +92,10 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 		_, errorConnection := connectClient.Get(config.Engine)
 
 		if errorConnection != nil {
-			log.Fatalf("%s Engine server is not running, you need to make sure engine server is reachable", red("[Owl]"))
+			log.Fatalf(red("[Owl] Engine server is not running, you need to make sure engine server is reachable"))
 		}
 
-		log.Printf("%s Flow started", blue("[Owl]"))
+		log.Printf("%s Flow %s started", blue("[Owl]"), green(config.Name))
 		loading := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
 		loading.Suffix = "  scraping target " + config.Target
 		loading.Start()
@@ -132,7 +132,7 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 		_ = ioutil.WriteFile(jsonPath, resultBody, 0644)
 
 		end := time.Now()
-		log.Printf("%s Flow finished in %s (s)", blue("[Owl]"), green(end.Sub(start).Seconds()))
+		log.Printf("%s Flow #%s finished in %s (s)", blue("[Owl]"), green(result.Id), green(end.Sub(start).Seconds()))
 		log.Printf("%s Flow closed", blue("[Owl]"))
 
 		return sendConfig(flows, current+1, total, errorGroup)
@@ -157,7 +157,7 @@ func readConfig(filename string) (*types.Config, error) {
 	err = yaml.Unmarshal(buf, c)
 
 	if err != nil {
-		log.Fatalf("%s Cannot read flow file %q: %v\n", red("[Owl]"), filename, err)
+		log.Fatalf(red("[Owl] Cannot read flow file %q : %v"), filename, err)
 	}
 
 	return c, nil
