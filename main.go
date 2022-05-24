@@ -192,6 +192,10 @@ func HandleHTTPRequest() {
 // TODO Comment
 // ....
 func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
+	setupResponse(&w, r)
+	if (*r).Method == "OPTIONS" {
+		return
+	}
 	unique := uuid.New().String()
 	pageId := unique[len(unique)-12:]
 	yellow := color.New(color.FgYellow).SprintFunc()
@@ -666,4 +670,10 @@ func printCSV(w io.Writer, results []json2csv.KeyValue, headerStyle json2csv.Key
 		return err
 	}
 	return nil
+}
+
+func setupResponse(w *http.ResponseWriter, req *http.Request) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
