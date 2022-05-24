@@ -10,13 +10,13 @@ Descriptive scraper engine based on Chromium browser
 - [x] Web Extraction (HTML & Text)
 - [x] Add repeat & paginate parameter
 - [x] Nullish / Unknown element handling
+- [x] Server connection checking
 - [x] Web Extraction (Table Format)
 - [x] Handling environment on flow configuration
-- [ ] Better console output
+- [x] Asynchronous scraping process
+- [x] Better console output
 - [ ] Support Windows architecture
 - [ ] Install from Go Package / Github
-- [ ] Parallel Tabs Processing
-- [ ] Better network connection checking
 - [ ] Better project documentation
 - [ ] Dedicated Engine Server
 - [ ] And more
