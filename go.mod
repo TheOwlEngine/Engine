@@ -26,5 +26,6 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/leakless v0.7.0 // indirect
+	github.com/yukithm/json2csv v0.1.2 // indirect
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 )

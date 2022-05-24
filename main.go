@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strings"
 	"time"
 
@@ -28,6 +29,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
 	"github.com/ysmood/gson"
+	"github.com/yukithm/json2csv"
+	"github.com/yukithm/json2csv/jsonpointer"
 	"golang.org/x/net/html"
 )
 
@@ -515,7 +518,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 			tableTokenizer := html.NewTokenizer(tableToken)
 			tableRowCount := tableElement.MustEval("() => this.querySelectorAll('tr').length").Int()
 
-			//                       row     column value
+			//                  row    column value
 			tableContent := make([]map[string]string, tableRowCount)
 
 			var tableRowCounter int = 0
@@ -528,6 +531,27 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 			jsonTable, _ := json.Marshal(resultOfTable)
 
 			htmlResult[pageIndex][takeData.Table.Name] = string(jsonTable)
+
+			if takeData.Table.WithCSV {
+				rescueStdout := os.Stdout
+				osReader, osWriter, _ := os.Pipe()
+				os.Stdout = osWriter
+
+				stringReader := strings.NewReader(string(jsonTable))
+				data, _ := readJSON(stringReader)
+				value, _ := jsonpointer.Get(data, "")
+				results, _ := json2csv.JSON2CSV(value)
+
+				printCSV(os.Stdout, results, json2csv.DotNotationStyle, false)
+
+				osWriter.Close()
+
+				csvResult, _ := ioutil.ReadAll(osReader)
+
+				os.Stdout = rescueStdout
+
+				htmlResult[pageIndex][takeData.Table.Name+"_csv"] = string(csvResult)
+			}
 		}
 
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -622,3 +646,24 @@ func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
 // TODO Comment
 // ....
 func Noop(w http.ResponseWriter, r *http.Request) {}
+
+func readJSON(r io.Reader) (interface{}, error) {
+	decoder := json.NewDecoder(r)
+	decoder.UseNumber()
+
+	var data interface{}
+	if err := decoder.Decode(&data); err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+func printCSV(w io.Writer, results []json2csv.KeyValue, headerStyle json2csv.KeyStyle, transpose bool) error {
+	csv := json2csv.NewCSVWriter(w)
+	csv.HeaderStyle = headerStyle
+	csv.Transpose = transpose
+	if err := csv.WriteCSV(results); err != nil {
+		return err
+	}
+	return nil
+}

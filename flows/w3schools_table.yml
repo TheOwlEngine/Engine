@@ -27,10 +27,11 @@ flow:
       - table:
           name: customer_list
           selector: "#customers"
+          with_csv: true
           fields:
-            - index: 1
-              name: company
             - index: 0
-              name: country
-            - index: 2
+              name: company
+            - index: 1
               name: contact
+            - index: 2
+              name: country
