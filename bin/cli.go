@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"engine/types"
 	"fmt"
@@ -10,16 +11,24 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/DrSmithFr/go-console/pkg/style"
+	"github.com/briandowns/spinner"
+	"github.com/fatih/color"
+	"github.com/gosimple/slug"
 	"github.com/urfave/cli"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 )
 
+var workingDirectory string
+
 func main() {
 	io := style.NewConsoleStyler()
+	green := color.New(color.FgGreen).SprintFunc()
+	blue := color.New(color.FgBlue).SprintFunc()
 
 	// enable stylish errors
 	defer io.HandleRuntimeException()
@@ -29,59 +38,21 @@ func main() {
 		Usage: "This will provide connection to the Engine server",
 		Flags: []cli.Flag{},
 		Action: func(c *cli.Context) error {
-			workingDirectory, _ := os.Getwd()
+			log.Printf("%s Starting OwlEngine v1.0\n", blue("[Owl]"))
+
+			workingDirectory, _ = os.Getwd()
 			workingFlows, _ := filepath.Glob(workingDirectory + "/flows/*.yml")
 
-			var wg sync.WaitGroup
+			start := time.Now()
+			errorGroup, _ := errgroup.WithContext(context.Background())
 
-			wg.Add(len(workingFlows))
+			isFinish := sendConfig(workingFlows, 0, len(workingFlows), errorGroup)
 
-			log.Println("[Owl] Start reading flow config")
-
-			for flowIndex, flow := range workingFlows {
-				flowData := flow
-
-				go func(flowIndex int) {
-					config, errorReading := readConfig(flowData)
-
-					if errorReading != nil {
-						log.Fatal(errorReading)
-					}
-
-					if config.Engine == "" {
-						log.Fatal("[Owl] Engine server is not specify, you need to specify engine server URL")
-					}
-
-					connectClient := http.Client{
-						Timeout: 2 * time.Second,
-					}
-					_, errorConnection := connectClient.Get(config.Engine)
-
-					if errorConnection != nil {
-						log.Fatal("[Owl] Engine server is not running, you need to make sure engine server is reachable")
-					}
-
-					log.Println("[Owl] Sending " + flowData + " config to the server")
-					request := types.Config{
-						Name:     config.Name,
-						Engine:   config.Engine,
-						Flow:     config.Flow,
-						HtmlOnly: config.HtmlOnly,
-						Paginate: config.Paginate,
-						Repeat:   config.Repeat,
-						Target:   config.Target,
-					}
-
-					sendRequest(request)
-
-					defer wg.Done()
-				}(flowIndex)
+			if isFinish {
+				end := time.Now()
+				fmt.Println("")
+				log.Printf("%s All flow finished in %s (s)", blue("[Owl]"), green(end.Sub(start).Seconds()))
 			}
-
-			wg.Wait()
-
-			log.Println("[Owl] All flow already sended")
-			log.Println("[Owl] Application closed")
 
 			return nil
 		},
@@ -94,7 +65,89 @@ func main() {
 	}
 }
 
+func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Group) bool {
+	red := color.New(color.FgRed).SprintFunc()
+	blue := color.New(color.FgBlue).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+	start := time.Now()
+
+	if current < total {
+		requestChan := make(chan *http.Response, 1)
+
+		fmt.Printf("\n--- Reading flow %s\n\n", green(strings.ReplaceAll(flows[current], workingDirectory+"/flows/", "")))
+
+		config, errorReading := readConfig(flows[current])
+
+		if errorReading != nil {
+			log.Fatalf("%s Cannot read the config %v", red("[Owl]"), errorReading)
+		}
+
+		if config.Engine == "" {
+			log.Fatalf("%s Engine server is not specify, you need to specify engine server URL", red("[Owl]"))
+		}
+
+		connectClient := http.Client{
+			Timeout: 2 * time.Second,
+		}
+		_, errorConnection := connectClient.Get(config.Engine)
+
+		if errorConnection != nil {
+			log.Fatalf("%s Engine server is not running, you need to make sure engine server is reachable", red("[Owl]"))
+		}
+
+		log.Printf("%s Flow started", blue("[Owl]"))
+		loading := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+		loading.Suffix = "  scraping target " + config.Target
+		loading.Start()
+
+		body := types.Config{
+			Name:     config.Name,
+			Engine:   config.Engine,
+			Flow:     config.Flow,
+			HtmlOnly: config.HtmlOnly,
+			Paginate: config.Paginate,
+			Repeat:   config.Repeat,
+			Target:   config.Target,
+		}
+
+		errorGroup.Go(func() error { return sendRequest(body, requestChan) })
+
+		requestResponse := <-requestChan
+
+		defer requestResponse.Body.Close()
+
+		var result types.Response
+
+		resultBody, _ := ioutil.ReadAll(requestResponse.Body)
+
+		loading.Stop()
+
+		json.Unmarshal([]byte(resultBody), &result)
+
+		slugName := slug.Make(result.Name)
+		jsonPath := workingDirectory + "/resources/json/" + slugName + "-" + result.Id + ".json"
+
+		log.Printf("%s Result saved : %s", blue("[Owl]"), green(jsonPath))
+
+		_ = ioutil.WriteFile(jsonPath, resultBody, 0644)
+
+		end := time.Now()
+		log.Printf("%s Flow finished in %s (s)", blue("[Owl]"), green(end.Sub(start).Seconds()))
+		log.Printf("%s Flow closed", blue("[Owl]"))
+
+		return sendConfig(flows, current+1, total, errorGroup)
+	}
+
+	if current == total {
+		return true
+	}
+
+	return false
+}
+
 func readConfig(filename string) (*types.Config, error) {
+	red := color.New(color.FgRed).SprintFunc()
+
 	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -102,21 +155,19 @@ func readConfig(filename string) (*types.Config, error) {
 
 	c := &types.Config{}
 	err = yaml.Unmarshal(buf, c)
+
 	if err != nil {
-		return nil, fmt.Errorf("[Owl] Cannot read flow file %q: %v", filename, err)
+		log.Fatalf("%s Cannot read flow file %q: %v\n", red("[Owl]"), filename, err)
 	}
 
 	return c, nil
 }
 
-func sendRequest(data types.Config) types.Response {
-	var result types.Response
-
+func sendRequest(data types.Config, requestChan chan *http.Response) error {
 	body, _ := json.Marshal(data)
-	response, _ := http.Post(data.Engine, "application/json", bytes.NewBuffer(body))
-	resultBody, _ := ioutil.ReadAll(response.Body)
+	response, httpError := http.Post(data.Engine, "application/json", bytes.NewReader(body))
 
-	json.Unmarshal([]byte(resultBody), &result)
+	requestChan <- response
 
-	return result
+	return httpError
 }

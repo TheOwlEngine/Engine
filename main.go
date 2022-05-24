@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"time"
 
@@ -19,14 +18,12 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/DrSmithFr/go-console/pkg/style"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/rod/lib/utils"
 	"github.com/google/uuid"
-	"github.com/gosimple/slug"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
 	"github.com/ysmood/gson"
@@ -57,11 +54,6 @@ func main() {
 
 	defaultTimeout = 3 * time.Second
 
-	styler := style.NewConsoleStyler()
-
-	// enable stylish errors
-	defer styler.HandleRuntimeException()
-
 	rootDirectory, _ = os.Getwd()
 
 	resourcesDirectory = rootDirectory + "/resources/"
@@ -87,8 +79,6 @@ func main() {
 
 	log.SetOutput(multiLogger)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
-
-	log.Println(os.Getenv("SAMPLE_ENV_USERNAME"))
 
 	app := &cli.App{
 		Name:  "Engine",
@@ -118,12 +108,10 @@ func main() {
 				useProxy = true
 
 				log.Printf("[ Engine ] Using proxy %s", engineProxy)
-				styler.Note("[ Engine ] Using proxy " + engineProxy)
 			}
 
 			if engineDebug {
 				log.Printf("[ Engine ] Using debug mode")
-				styler.Note("[ Engine ] Using debug mode")
 			}
 
 			var userLauncher string
@@ -149,7 +137,7 @@ func main() {
 			engineBrowser.MustPage("about:blank")
 
 			log.Println("[ Engine ] Ready to handle multi-pages scraper")
-			HandleHTTPRequest(styler)
+			HandleHTTPRequest()
 
 			return nil
 		},
@@ -164,7 +152,7 @@ func main() {
 
 // TODO Comment
 // ....
-func HandleHTTPRequest(styler *style.GoStyler) {
+func HandleHTTPRequest() {
 	http.HandleFunc("/", HandleMultiPages)
 	http.HandleFunc("/favicon.ico", Noop)
 
@@ -177,7 +165,6 @@ func HandleHTTPRequest(styler *style.GoStyler) {
 	}
 
 	log.Printf("[ Engine ] Running on port %s", enginePort)
-	styler.Success("[ Engine ] Running on http://127.0.0.1:" + enginePort)
 
 	sign := make(chan os.Signal)
 
@@ -266,15 +253,6 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					Code:   200,
 					Result: htmlString,
 				}
-
-				slugName := slug.Make(request.Name)
-				jsonPath := jsonDirectory + slugName + "-" + pageId + ".json"
-				fileSource, _ := json.MarshalIndent(resultJson, "", " ")
-
-				fileReplacer := strings.NewReplacer(`\"`, `"`, `"[`, `[`, `]"`, `]`)
-				fileDecode := fileReplacer.Replace(string(fileSource))
-
-				_ = ioutil.WriteFile(jsonPath, []byte(fileDecode), 0644)
 
 				rootChannel <- resultJson
 			} else {
@@ -606,7 +584,12 @@ func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	json.NewEncoder(w).Encode(data)
+	fileSource, _ := json.MarshalIndent(data, "", "  ")
+
+	fileReplacer := strings.NewReplacer(`\"`, `"`, `"[`, `[`, `]"`, `]`)
+	fileDecode := fileReplacer.Replace(string(fileSource))
+
+	w.Write([]byte(fileDecode))
 }
 
 // TODO Comment
