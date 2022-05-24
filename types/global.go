@@ -1,14 +1,15 @@
 package types
 
 type Response struct {
-	Id      string                    `json:"id,omitempty"`
-	Code    int                       `json:"code,omitempty"`
-	Name    string                    `json:"name,omitempty"`
-	Target  string                    `json:"target,omitempty"`
-	Engine  string                    `json:"engine,omitempty"`
-	Message string                    `json:"message,omitempty"`
-	Result  map[int]map[string]string `json:"html,omitempty"`
-	Path    string                    `json:"path,omitempty"`
+	Id         string                    `json:"id,omitempty"`
+	Code       int                       `json:"code,omitempty"`
+	Name       string                    `json:"name,omitempty"`
+	Target     string                    `json:"target,omitempty"`
+	Engine     string                    `json:"engine,omitempty"`
+	Message    string                    `json:"message,omitempty"`
+	Result     map[int]map[string]string `json:"html,omitempty"`
+	Screenshot map[string]string         `json:"screenshot,omitempty"`
+	Path       string                    `json:"path,omitempty"`
 }
 
 type Config struct {

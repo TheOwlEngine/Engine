@@ -5,7 +5,7 @@ engine: http://127.0.0.1:3000
 target: https://google.com
 
 # Flow Name
-name: Basic Screenshot
+name: Screenshot
 
 # Flow Process
 flow:

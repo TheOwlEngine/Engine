@@ -240,7 +240,8 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					go router.Run()
 				}
 
-				htmlString := make(map[int]map[string]string)
+				htmlResult := make(map[int]map[string]string)
+				screenshotResult := make(map[string]string)
 
 				pageRepeated := 1
 
@@ -248,7 +249,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					pageRepeated = request.Repeat
 				}
 
-				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, htmlString)
+				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, htmlResult, screenshotResult)
 
 				if isFinish {
 					page.MustClose()
@@ -260,7 +261,16 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					Target: request.Target,
 					Engine: request.Engine,
 					Code:   200,
-					Result: htmlString,
+				}
+
+				if len(htmlResult) > 0 {
+					if len(htmlResult[0]) > 0 {
+						resultJson.Result = htmlResult
+					}
+				}
+
+				if len(screenshotResult) > 0 {
+					resultJson.Screenshot = screenshotResult
 				}
 
 				rootChannel <- resultJson
@@ -291,9 +301,9 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 // TODO Comment
 // ....
-func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, htmlString map[int]map[string]string) bool {
+func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, htmlResult map[int]map[string]string, screenshotResult map[string]string) bool {
 	if pageIndex < pageMustRepeat {
-		htmlString[pageIndex] = make(map[string]string)
+		htmlResult[pageIndex] = make(map[string]string)
 
 		var allowToNavigate bool = true
 
@@ -305,10 +315,10 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 			page.Navigate(request.Target)
 		}
 
-		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, htmlString)
+		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, htmlResult, screenshotResult)
 
 		if isFinish {
-			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, htmlString)
+			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, htmlResult, screenshotResult)
 		} else {
 			return false
 		}
@@ -321,7 +331,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 	return false
 }
 
-func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlString map[int]map[string]string) bool {
+func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string, screenshotResult map[string]string) bool {
 	red := color.New(color.FgRed).SprintFunc()
 
 	if current < total {
@@ -438,18 +448,20 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				page.MustScreenshot(screenshotPath)
 			}
 
+			screenshotResult[flowData.Screenshot.Path] = screenshotPath
+
 		} else if len(flowData.Take) > 0 {
 
 			// TODO Comment
 			// ....
 
-			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageId, pageIndex, htmlString)
+			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageId, pageIndex, htmlResult)
 
 		} else {
 			// noop
 		}
 
-		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, htmlString)
+		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, htmlResult, screenshotResult)
 	}
 
 	if current == total {
@@ -462,7 +474,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 // TODO Comment
 // ....
 
-func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlString map[int]map[string]string) bool {
+func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string) bool {
 	red := color.New(color.FgRed).SprintFunc()
 
 	if current < total {
@@ -488,11 +500,11 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 			}
 
 			if takeData.Parse == "html" {
-				htmlString[pageIndex][fieldName] = string(fieldElement.MustHTML())
+				htmlResult[pageIndex][fieldName] = string(fieldElement.MustHTML())
 			}
 
 			if takeData.Parse == "text" {
-				htmlString[pageIndex][fieldName] = string(fieldElement.MustText())
+				htmlResult[pageIndex][fieldName] = string(fieldElement.MustText())
 			}
 		})
 
@@ -515,7 +527,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 
 			jsonTable, _ := json.Marshal(resultOfTable)
 
-			htmlString[pageIndex][takeData.Table.Name] = string(jsonTable)
+			htmlResult[pageIndex][takeData.Table.Name] = string(jsonTable)
 		}
 
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -524,7 +536,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 			panic(err)
 		}
 
-		HandleTakeLoop(take, current+1, total, page, pageId, pageIndex, htmlString)
+		HandleTakeLoop(take, current+1, total, page, pageId, pageIndex, htmlResult)
 	}
 
 	if current == total {
