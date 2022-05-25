@@ -46,7 +46,6 @@ var useProxy bool = false
 var rootDirectory string
 var resourcesDirectory string
 var screenshotDirectory string
-var jsonDirectory string
 var logsDirectory string
 
 var defaultTimeout time.Duration
@@ -62,7 +61,6 @@ func main() {
 
 	resourcesDirectory = rootDirectory + "/resources/"
 	screenshotDirectory = resourcesDirectory + "/screenshots/"
-	jsonDirectory = resourcesDirectory + "/json/"
 	logsDirectory = rootDirectory + "/logs/"
 
 	// log to custom file
@@ -512,6 +510,33 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 
 			if takeData.Parse == "text" {
 				htmlResult[pageIndex][fieldName] = string(fieldElement.MustText())
+			}
+
+			if takeData.Parse == "image" || takeData.Parse == "anchor" {
+				var sourceText string
+
+				if takeData.Parse == "image" {
+					source, _ := fieldElement.Attribute("src")
+
+					if source != nil {
+						sourceText = *source
+					}
+				}
+
+				if takeData.Parse == "anchor" {
+					source, _ := fieldElement.Attribute("href")
+
+					if source != nil {
+						sourceText = *source
+					}
+				}
+
+				pageLocation := page.MustEval("() => window.location")
+				pageDomain := pageLocation.Get("origin").String()
+				fieldSource := strings.ReplaceAll(pageDomain+"/"+sourceText, "//", "/")
+
+				htmlResult[pageIndex][fieldName] = string(fieldSource)
+
 			}
 		})
 
