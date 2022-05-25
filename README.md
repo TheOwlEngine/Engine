@@ -15,11 +15,8 @@ Descriptive scraper engine based on Chromium browser
 - [x] Handling environment on flow configuration
 - [x] Asynchronous scraping process
 - [x] Better console output
-- [ ] Support Windows architecture
 - [ ] Install from Go Package / Github
 - [ ] Better project documentation
-- [ ] Dedicated Engine Server
-- [ ] And more
 
 ## Installation
 
