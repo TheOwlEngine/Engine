@@ -9,7 +9,7 @@ type Response struct {
 	Message    string                    `json:"message,omitempty"`
 	Result     map[int]map[string]string `json:"html,omitempty"`
 	Screenshot map[string]string         `json:"screenshot,omitempty"`
-	Path       string                    `json:"path,omitempty"`
+	Video      map[string]string         `json:"video,omitempty"`
 }
 
 type Config struct {
@@ -20,6 +20,7 @@ type Config struct {
 	Paginate bool   `yaml:"paginate"`
 	Repeat   int    `yaml:"repeat"`
 	Target   string `yaml:"target"`
+	Record   bool   `yaml:"record"`
 }
 
 type Flow struct {

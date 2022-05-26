@@ -18,12 +18,16 @@ flow:
         name: heading
         parse: text
 
+      - delay: 3
+
       # Test add unknown element
       - next_to_contains:
           selector: "td"
           identifier: ".thumb.tright"
         name: description
         parse: text
+
+      - delay: 3
 
   # Get data
   - take:
@@ -35,12 +39,16 @@ flow:
         name: kingdom
         parse: text
 
+      - delay: 3
+
       # Get value next to phylum element
       - next_to_contains:
           selector: "td"
           identifier: "Phylum:"
         name: phylum
         parse: text
+
+      - delay: 3
 
       # Get value next to class element
       - next_to_contains:
@@ -54,6 +62,8 @@ flow:
 
   # Get data
   - take:
+
+      - delay: 3
 
       # Get heading page as sub heading
       - selector: "#firstHeading"

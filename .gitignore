@@ -23,12 +23,14 @@ logs/*
 # Resources directory
 resources/screenshots/*
 resources/json/*
+resources/videos/*
 
 # Keep some files
 !build/.gitkeep
 !logs/.gitkeep
 !resources/screenshots/.gitkeep
 !resources/json/.gitkeep
+!resources/videos/.gitkeep
 
 # Env
 .env

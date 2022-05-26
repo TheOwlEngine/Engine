@@ -108,6 +108,7 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 			Paginate: config.Paginate,
 			Repeat:   config.Repeat,
 			Target:   config.Target,
+			Record:   config.Record,
 		}
 
 		errorGroup.Go(func() error { return sendRequest(body, requestChan) })
@@ -134,6 +135,9 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 		end := time.Now()
 		log.Printf("%s Flow #%s finished in %s (s)", blue("[Owl]"), green(result.Id), green(end.Sub(start).Seconds()))
 		log.Printf("%s Flow closed", blue("[Owl]"))
+
+		// Delay two second
+		time.Sleep(2 * time.Second)
 
 		return sendConfig(flows, current+1, total, errorGroup)
 	}

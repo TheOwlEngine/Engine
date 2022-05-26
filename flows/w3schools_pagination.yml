@@ -13,6 +13,9 @@ repeat: 10
 # Enable Pagination
 paginate: true
 
+# Enable video recording for debug (will decrease response speed)
+record: true
+
 # Flow Process
 flow:
 
@@ -28,6 +31,10 @@ flow:
       - selector: .intro
         name: introduction
         parse: text
+
+  # Take a screenshot
+  - screenshot:
+      path: screenshot.jpg
       
   - form:
       selector: .nextprev .w3-right

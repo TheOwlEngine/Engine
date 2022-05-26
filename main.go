@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,6 +28,8 @@ import (
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/rod/lib/utils"
 	"github.com/google/uuid"
+	"github.com/gosimple/slug"
+	"github.com/icza/mjpeg"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
 	"github.com/ysmood/gson"
@@ -46,6 +50,7 @@ var useProxy bool = false
 var rootDirectory string
 var resourcesDirectory string
 var screenshotDirectory string
+var videoDirectory string
 var logsDirectory string
 
 var defaultTimeout time.Duration
@@ -61,6 +66,7 @@ func main() {
 
 	resourcesDirectory = rootDirectory + "/resources/"
 	screenshotDirectory = resourcesDirectory + "/screenshots/"
+	videoDirectory = resourcesDirectory + "/videos/"
 	logsDirectory = rootDirectory + "/logs/"
 
 	// log to custom file
@@ -131,7 +137,10 @@ func main() {
 				userLauncher = launcher.New().
 					NoSandbox(true).        // disable chromium sandbox
 					Headless(!engineDebug). // set false to debug
-					MustLaunch()            // launch the browser
+					Set(`--enable-usermedia-screen-capturing`).
+					Set(`--allow-http-screen-capture`).
+					Set(`--disable-infobars`).
+					MustLaunch() // launch the browser
 			}
 
 			log.Printf("%s Start browser", yellow("[ Engine ]"))
@@ -225,6 +234,30 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				page := engineBrowser.MustPage()
 
+				// Listen for all events of console output.
+				frameCount := 0
+				go page.EachEvent(func(e *proto.PageScreencastFrame) {
+					temporaryFilePath := videoDirectory + pageId + "-" + strconv.Itoa(frameCount) + "-frame.jpeg"
+
+					_ = utils.OutputFile(temporaryFilePath, e.Data)
+
+					proto.PageScreencastFrameAck{
+						SessionID: e.SessionID,
+					}.Call(page)
+					frameCount++
+				})()
+
+				if request.Record {
+					quality := int(100)
+					everyNthFrame := int(1)
+
+					proto.PageStartScreencast{
+						Format:        "jpeg",
+						Quality:       &quality,
+						EveryNthFrame: &everyNthFrame,
+					}.Call(page)
+				}
+
 				// If website is HTML only and not rendered with JavaScript
 				// let skip browser to disable screenshot the resources like
 				// image, stylesheet, media, ping, font
@@ -247,6 +280,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				htmlResult := make(map[int]map[string]string)
 				screenshotResult := make(map[string]string)
+				videoResult := make(map[string]string)
 
 				pageRepeated := 1
 
@@ -257,7 +291,20 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, htmlResult, screenshotResult)
 
 				if isFinish {
+					proto.PageStopScreencast{}.Call(page)
 					page.MustClose()
+				}
+
+				// Delay two second
+				time.Sleep(2 * time.Second)
+
+				if request.Record {
+					videoName, videoPath := HandleRenderVideo(request.Name, pageId)
+
+					pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
+					pathReplaced := pathReplacer.Replace(string(videoPath))
+
+					videoResult[videoName] = pathReplaced
 				}
 
 				resultJson := types.Response{
@@ -276,6 +323,12 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				if len(screenshotResult) > 0 {
 					resultJson.Screenshot = screenshotResult
+				}
+
+				log.Println(videoResult)
+
+				if len(videoResult) > 0 {
+					resultJson.Video = videoResult
 				}
 
 				rootChannel <- resultJson
@@ -424,7 +477,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			// TODO Comment
 			// ....
 
-			screenshotPath := screenshotDirectory + pageId + "-" + flowData.Screenshot.Path
+			screenshotPath := screenshotDirectory + pageId + "-" + strconv.Itoa(pageIndex) + "-" + flowData.Screenshot.Path
 
 			if flowData.Screenshot.Clip.Top != 0 || flowData.Screenshot.Clip.Left != 0 || flowData.Screenshot.Clip.Width != 0 || flowData.Screenshot.Clip.Height != 0 {
 
@@ -453,7 +506,10 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				page.MustScreenshot(screenshotPath)
 			}
 
-			screenshotResult[flowData.Screenshot.Path] = screenshotPath
+			pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
+			pathReplaced := pathReplacer.Replace(string(screenshotPath))
+
+			screenshotResult[strconv.Itoa(pageIndex)+"-"+flowData.Screenshot.Path] = pathReplaced
 
 		} else if len(flowData.Take) > 0 {
 
@@ -666,10 +722,10 @@ func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
 
 	fileSource, _ := json.MarshalIndent(data, "", "  ")
 
-	fileReplacer := strings.NewReplacer(`\"`, `"`, `"[`, `[`, `]"`, `]`)
-	fileDecode := fileReplacer.Replace(string(fileSource))
+	pathReplacer := strings.NewReplacer(`\"`, `"`, `"[`, `[`, `]"`, `]`)
+	pathReplaced := pathReplacer.Replace(string(fileSource))
 
-	w.Write([]byte(fileDecode))
+	w.Write([]byte(pathReplaced))
 }
 
 // TODO Comment
@@ -701,4 +757,50 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
+func HandleRenderVideo(name string, pageId string) (string, string) {
+	red := color.New(color.FgRed).SprintFunc()
+
+	slugName := slug.Make(name)
+	videoName := slugName + "-" + pageId + ".avi"
+	videoPath := videoDirectory + videoName
+
+	go func() {
+		renderer, err := mjpeg.New(videoPath, int32(1440), int32(900), 1)
+
+		if err != nil {
+			log.Printf(red("[ Engine ] %v\n"), err)
+		}
+
+		matches, err := filepath.Glob(videoDirectory + pageId + "-*-frame.jpeg")
+
+		if err != nil {
+			log.Printf(red("[ Engine ] %v\n"), err)
+		}
+
+		sort.Strings(matches)
+
+		for _, name := range matches {
+			data, err := ioutil.ReadFile(name)
+
+			if err != nil {
+				log.Printf(red("[ Engine ] %v\n"), err)
+			}
+
+			renderer.AddFrame(data)
+		}
+
+		renderer.Close()
+
+		for _, name := range matches {
+			errRemove := os.Remove(name)
+
+			if errRemove != nil {
+				log.Printf(red("[ Engine ] %v\n"), errRemove)
+			}
+		}
+	}()
+
+	return videoName, videoPath
 }

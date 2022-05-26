@@ -16,6 +16,8 @@ github.com/gosimple/slug v1.12.0/go.mod h1:UiRaFH+GEilHstLUmcBgWcI42viBN7mAb818J
 github.com/gosimple/unidecode v1.0.1 h1:hZzFTMMqSswvf0LBJZCZgThIZrpDHFXux9KeGmn6T/o=
 github.com/gosimple/unidecode v1.0.1/go.mod h1:CP0Cr1Y1kogOtx0bJblKzsVWrqYaqfNOnHzpgWw4Awc=
 github.com/hashicorp/go-version v1.0.0/go.mod h1:fltr4n8CU8Ke44wwGCBoEymUuxUHl09ZGVZPK5anwXA=
+github.com/icza/mjpeg v0.0.0-20210726201846-5ff75d3c479f h1:907GjB0sqx3+XKOz5tSeAi8Z9ED7WwQU9hXoclDp+jg=
+github.com/icza/mjpeg v0.0.0-20210726201846-5ff75d3c479f/go.mod h1:Eja3x31oRrEOzl6ihhsxY23gXaTYWLP3Gwj5nMAJ7m0=
 github.com/joho/godotenv v1.4.0 h1:3l4+N6zfMWnkbPEXKng2o2/MR5mSwTrBih4ZEkkz1lg=
 github.com/joho/godotenv v1.4.0/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/mattn/go-colorable v0.1.2 h1:/bC9yWikZXAL9uJdulbSfyVNIR3n3trXl+v8+1sx8mU=

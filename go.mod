@@ -9,9 +9,11 @@ require (
 	github.com/go-rod/rod v0.106.6
 	github.com/google/uuid v1.3.0
 	github.com/gosimple/slug v1.12.0
+	github.com/icza/mjpeg v0.0.0-20210726201846-5ff75d3c479f
 	github.com/joho/godotenv v1.4.0
 	github.com/urfave/cli v1.22.9
 	github.com/ysmood/gson v0.7.1
+	github.com/yukithm/json2csv v0.1.2
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 	gopkg.in/yaml.v3 v3.0.0-20220512140231-539c8e751b99
@@ -26,6 +28,5 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/leakless v0.7.0 // indirect
-	github.com/yukithm/json2csv v0.1.2 // indirect
 	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 )
