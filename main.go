@@ -169,6 +169,8 @@ func main() {
 func HandleHTTPRequest() {
 	green := color.New(color.FgGreen).SprintFunc()
 
+	http.Handle("/resources/", http.StripPrefix("/resources/", http.FileServer(http.Dir(resourcesDirectory))))
+
 	http.HandleFunc("/", HandleMultiPages)
 	http.HandleFunc("/favicon.ico", Noop)
 

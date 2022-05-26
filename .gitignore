@@ -28,9 +28,9 @@ resources/videos/*
 # Keep some files
 !build/.gitkeep
 !logs/.gitkeep
-!resources/screenshots/.gitkeep
-!resources/json/.gitkeep
-!resources/videos/.gitkeep
+!resources/screenshots/index.html
+!resources/json/index.html
+!resources/videos/index.html
 
 # Env
 .env
