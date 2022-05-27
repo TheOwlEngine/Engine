@@ -111,6 +111,9 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
+			println("")
+			log.Printf("%s Starting engine\n", yellow("[ Engine ]"))
+
 			enginePort = c.String("port")
 			engineProxy = c.String("proxy")
 			engineDebug = c.Bool("debug")
@@ -144,16 +147,12 @@ func main() {
 					MustLaunch() // launch the browser
 			}
 
-			log.Printf("%s Start browser", yellow("[ Engine ]"))
+			log.Printf("%s Starting browser", yellow("[ Engine ]"))
 			engineBrowser = *rod.New().ControlURL(userLauncher).MustConnect()
 
 			// Start with blank page to initialize browser
 			log.Printf("%s Create a blank page", yellow("[ Engine ]"))
 			engineBrowser.MustPage("about:blank")
-
-			host := engineBrowser.ServeMonitor("")
-
-			log.Println(host)
 
 			log.Printf("%s Ready to handle scraper\n\n", yellow("[ Engine ]"))
 			HandleHTTPRequest()
@@ -188,7 +187,7 @@ func HandleHTTPRequest() {
 	}
 
 	log.Printf("%s Server running on http://127.0.0.1:%s\n", green("[ Engine ]"), enginePort)
-	log.Printf("%s Waiting for connection\n", green("[ Engine ]"))
+	log.Printf("%s Waiting for connection\n\n", green("[ Engine ]"))
 
 	sign := make(chan os.Signal)
 
@@ -230,11 +229,14 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Printf("\n--- Create flow #%s - %s\n\n", green(pageId), green(request.Name))
+		fmt.Printf("--- Create flow #%s - %s\n\n", green(pageId), green(request.Name))
 
 		rootChannel := make(chan interface{})
 
 		go func(rootChannel chan interface{}) {
+			log.Printf("%s Flow ID : %s", yellow("[ Engine ]"), pageId)
+			log.Printf("%s Flow name : %s", yellow("[ Engine ]"), request.Name)
+			log.Printf("%s Flow target : %s\n\n", yellow("[ Engine ]"), request.Target)
 			log.Printf("%s Starting flow", yellow("[ Engine ]"))
 
 			if len(request.Flow) > 0 {
@@ -363,7 +365,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 		HandleResponse(w, result, pageId)
 
-		log.Printf("%s Flow closed", yellow("[ Engine ]"))
+		log.Printf("%s Flow closed\n\n", yellow("[ Engine ]"))
 	default:
 		resultJson := types.Response{
 			Code:    403,
@@ -780,7 +782,7 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 
-	log.Printf("%s Rendering project", yellow("[ Engine ]"))
+	log.Printf("%s Render recorded video", yellow("[ Engine ]"))
 
 	slugName := slug.Make(name)
 	videoName := slugName + "-" + pageId + ".mp4"
