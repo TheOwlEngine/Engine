@@ -150,6 +150,10 @@ func main() {
 			log.Printf("%s Create a blank page", yellow("[ Engine ]"))
 			engineBrowser.MustPage("about:blank")
 
+			host := engineBrowser.ServeMonitor("")
+
+			log.Println(host)
+
 			log.Printf("%s Ready to handle scraper\n\n", yellow("[ Engine ]"))
 			HandleHTTPRequest()
 
@@ -282,7 +286,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				htmlResult := make(map[int]map[string]string)
 				screenshotResult := make(map[string]string)
-				videoResult := make(map[string]string)
+				videoResult := ""
 
 				pageRepeated := 1
 
@@ -301,12 +305,12 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 				time.Sleep(2 * time.Second)
 
 				if request.Record {
-					videoName, videoPath := HandleRenderVideo(request.Name, pageId)
+					_, videoPath := HandleRenderVideo(request.Name, pageId)
 
 					pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
 					pathReplaced := pathReplacer.Replace(string(videoPath))
 
-					videoResult[videoName] = pathReplaced
+					videoResult = pathReplaced
 				}
 
 				resultJson := types.Response{
@@ -327,10 +331,8 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					resultJson.Screenshot = screenshotResult
 				}
 
-				log.Println(videoResult)
-
-				if len(videoResult) > 0 {
-					resultJson.Video = videoResult
+				if videoResult != "" {
+					resultJson.Recording = videoResult
 				}
 
 				rootChannel <- resultJson

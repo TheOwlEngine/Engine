@@ -9,7 +9,7 @@ type Response struct {
 	Message    string                    `json:"message,omitempty"`
 	Result     map[int]map[string]string `json:"html,omitempty"`
 	Screenshot map[string]string         `json:"screenshot,omitempty"`
-	Video      map[string]string         `json:"video,omitempty"`
+	Recording  string                    `json:"recording,omitempty"`
 }
 
 type Config struct {
