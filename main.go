@@ -295,6 +295,18 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					pageRepeated = request.Repeat
 				}
 
+				environmentRepetition := os.Getenv(`MAXIMUM_REPETITION`)
+
+				if environmentRepetition != "" {
+					maximumRepetition, _ := strconv.Atoi(environmentRepetition)
+
+					if pageRepeated > maximumRepetition {
+						log.Printf("%s Repeated parameter more than ENV want %d have %d", yellow("[ Engine ]"), maximumRepetition, pageRepeated)
+
+						pageRepeated = maximumRepetition
+					}
+				}
+
 				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, htmlResult, screenshotResult)
 
 				if isFinish {
