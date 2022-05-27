@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strconv"
 	"syscall"
@@ -765,13 +766,16 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) {
 
 func HandleRenderVideo(name string, pageId string) (string, string) {
 	red := color.New(color.FgRed).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+
+	log.Printf("%s Rendering project", yellow("[ Engine ]"))
 
 	slugName := slug.Make(name)
-	videoName := slugName + "-" + pageId + ".avi"
+	videoName := slugName + "-" + pageId + ".mp4"
 	videoPath := videoDirectory + videoName
 
 	go func() {
-		renderer, err := mjpeg.New(videoPath, int32(1440), int32(900), 1)
+		renderer, err := mjpeg.New(videoPath, int32(1440), int32(900), 6)
 
 		if err != nil {
 			log.Printf(red("[ Engine ] %v\n"), err)
@@ -803,6 +807,31 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 			if errRemove != nil {
 				log.Printf(red("[ Engine ] %v\n"), errRemove)
 			}
+		}
+
+		compressedPath := strings.ReplaceAll(videoPath, ".mp4", "-compressed.mp4")
+
+		cmd := exec.Command("ffmpeg", "-i", videoPath, "-vcodec", "h264", "-acodec", "mp2", compressedPath)
+		stdout, err := cmd.Output()
+
+		if err != nil {
+			log.Printf(red("[ Engine ] %v\n"), err)
+		}
+
+		if len(stdout) > 0 {
+			log.Printf("%s %v\n", yellow("[ Engine ]"), stdout)
+		}
+
+		errRemoveOriginal := os.Remove(videoPath)
+
+		if errRemoveOriginal != nil {
+			log.Printf(red("[ Engine ] %v\n"), errRemoveOriginal)
+		}
+
+		errRenameCompressed := os.Rename(compressedPath, videoPath)
+
+		if errRenameCompressed != nil {
+			log.Printf(red("[ Engine ] %v\n"), errRenameCompressed)
 		}
 	}()
 
