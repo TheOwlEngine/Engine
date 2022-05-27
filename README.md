@@ -18,6 +18,10 @@ Descriptive scraper engine based on Chromium browser
 - [ ] Install from Go Package / Github
 - [ ] Better project documentation
 
+## Dependencies
+
+- FFMPEG for Video compression
+
 ## Installation
 
 Fork & clone this repository
