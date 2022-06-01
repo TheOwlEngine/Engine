@@ -27,7 +27,6 @@ flow:
       - table:
           name: customer_list
           selector: "#customers"
-          with_csv: true
           fields:
             - index: 0
               name: company

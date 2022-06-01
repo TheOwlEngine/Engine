@@ -13,7 +13,6 @@ require (
 	github.com/joho/godotenv v1.4.0
 	github.com/urfave/cli v1.22.9
 	github.com/ysmood/gson v0.7.1
-	github.com/yukithm/json2csv v0.1.2
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 	gopkg.in/yaml.v3 v3.0.0-20220512140231-539c8e751b99

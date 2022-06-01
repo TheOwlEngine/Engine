@@ -69,7 +69,6 @@ type ElementContains struct {
 type ElementTable struct {
 	Selector string              `yaml:"selector"`
 	Name     string              `yaml:"name"`
-	WithCSV  bool                `yaml:"with_csv"`
 	Fields   []ElementTableField `yaml:"fields"`
 }
 
