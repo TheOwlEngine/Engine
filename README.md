@@ -2,21 +2,9 @@
 
 Descriptive scraper engine based on Chromium browser
 
-## Roadmap
+## Documentation
 
-- [x] Base Engine (single Browser, multiple Tabs)
-- [x] CLI program to read flow(s) file
-- [x] Multiple flow configuration (YAML)
-- [x] Web Extraction (HTML & Text)
-- [x] Add repeat & paginate parameter
-- [x] Nullish / Unknown element handling
-- [x] Server connection checking
-- [x] Web Extraction (Table Format)
-- [x] Handling environment on flow configuration
-- [x] Asynchronous scraping process
-- [x] Better console output
-- [ ] Install from Go Package / Github
-- [ ] Better project documentation
+Detailed documentation available on [this page](https://docs.owlengine.com/projects/engine).
 
 ## Dependencies
 
