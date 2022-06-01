@@ -104,7 +104,6 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 			Name:     config.Name,
 			Engine:   config.Engine,
 			Flow:     config.Flow,
-			HtmlOnly: config.HtmlOnly,
 			Paginate: config.Paginate,
 			Repeat:   config.Repeat,
 			Target:   config.Target,

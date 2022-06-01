@@ -171,6 +171,7 @@ func main() {
 // TODO Comment
 // ....
 func HandleHTTPRequest() {
+	red := color.New(color.FgRed).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
 
 	http.Handle("/resources/", http.StripPrefix("/resources/", http.FileServer(http.Dir(resourcesDirectory))))
@@ -178,12 +179,12 @@ func HandleHTTPRequest() {
 	http.HandleFunc("/", HandleMultiPages)
 	http.HandleFunc("/favicon.ico", Noop)
 
-	listener, err := net.Listen("tcp4", ":"+enginePort)
+	listener, errorListener := net.Listen("tcp4", ":"+enginePort)
 
 	strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 
-	if err != nil {
-		panic(err)
+	if errorListener != nil {
+		log.Printf(red("[ Engine ] %v"), errorListener)
 	}
 
 	log.Printf("%s Server running on http://127.0.0.1:%s\n", green("[ Engine ]"), enginePort)
@@ -213,6 +214,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	pageId := unique[len(unique)-12:]
 	yellow := color.New(color.FgYellow).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
 
 	switch r.Method {
 	case "POST":
@@ -240,11 +242,14 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 			log.Printf("%s Starting flow", yellow("[ Engine ]"))
 
 			if len(request.Flow) > 0 {
-
+				start := time.Now()
 				page := engineBrowser.MustPage()
 
-				// Listen for all events of console output.
+				// Enable screencast frame when user use record parameter
 				frameCount := 0
+				diskUsage := make(map[string]float64)
+				bandwidthUsage := make(map[string]float64)
+
 				go page.EachEvent(func(e *proto.PageScreencastFrame) {
 					temporaryFilePath := videoDirectory + pageId + "-" + strconv.Itoa(frameCount) + "-frame.jpeg"
 
@@ -254,6 +259,8 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 						SessionID: e.SessionID,
 					}.Call(page)
 					frameCount++
+				}, func(e *proto.NetworkResponseReceived) {
+					bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
 				})()
 
 				if request.Record {
@@ -267,33 +274,13 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					}.Call(page)
 				}
 
-				// If website is HTML only and not rendered with JavaScript
-				// let skip browser to disable screenshot the resources like
-				// image, stylesheet, media, ping, font
-				if request.HtmlOnly {
-					router := page.HijackRequests()
-
-					// since we are only hijacking a specific page, even using the "*" won't affect much of the performance
-					router.MustAdd("*", func(ctx *rod.Hijack) {
-						// use NetworkResourceTypeScript for javascript files, there're a lot of types you can use in this enum
-						if ctx.Request.Type() == proto.NetworkResourceTypeImage || ctx.Request.Type() == proto.NetworkResourceTypeStylesheet || ctx.Request.Type() == proto.NetworkResourceTypeMedia || ctx.Request.Type() == proto.NetworkResourceTypePing || ctx.Request.Type() == proto.NetworkResourceTypeFont {
-							ctx.Response.Fail(proto.NetworkErrorReasonBlockedByClient)
-							return
-						}
-
-						ctx.ContinueRequest(&proto.FetchContinueRequest{})
-					})
-
-					go router.Run()
-				}
-
 				htmlResult := make(map[int]map[string]string)
 				screenshotResult := make(map[string]string)
 				videoResult := ""
 
 				pageRepeated := 1
 
-				if request.Repeat > 0 {
+				if request.Paginate && request.Repeat > 0 {
 					pageRepeated = request.Repeat
 				}
 
@@ -309,7 +296,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
-				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, htmlResult, screenshotResult)
+				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, htmlResult, screenshotResult, diskUsage)
 
 				if isFinish {
 					proto.PageStopScreencast{}.Call(page)
@@ -317,7 +304,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 				}
 
 				// Delay two second
-				time.Sleep(2 * time.Second)
+				time.Sleep(1 * time.Second)
 
 				if request.Record {
 					_, videoPath := HandleRenderVideo(request.Name, pageId)
@@ -326,14 +313,36 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					pathReplaced := pathReplacer.Replace(string(videoPath))
 
 					videoResult = pathReplaced
+
+					time.Sleep(1 * time.Second)
+
+					fileSize, errorFileSize := os.Stat(rootDirectory + pathReplaced)
+
+					if errorFileSize != nil {
+						log.Printf(red("[ Engine ] %v"), errorFileSize)
+					} else {
+						diskUsage["video"] += float64(fileSize.Size())
+					}
 				}
 
+				slugName := slug.Make(request.Name)
+				sluggableName := slugName + "-" + pageId
+
 				resultJson := types.Response{
-					Id:     pageId,
-					Name:   request.Name,
-					Target: request.Target,
-					Engine: request.Engine,
-					Code:   200,
+					Id:       pageId,
+					Name:     request.Name,
+					Slug:     sluggableName,
+					Target:   request.Target,
+					Engine:   request.Engine,
+					Record:   request.Record,
+					Repeat:   pageRepeated,
+					Paginate: request.Paginate,
+					Duration: time.Since(start) / 1000000, // milisecond
+					Usage: types.ResponseUsage{
+						Bandwidth: bandwidthUsage,
+						Disk:      diskUsage,
+					},
+					Code: 200,
 				}
 
 				if len(htmlResult) > 0 {
@@ -378,7 +387,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 // TODO Comment
 // ....
-func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, htmlResult map[int]map[string]string, screenshotResult map[string]string) bool {
+func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, htmlResult map[int]map[string]string, screenshotResult map[string]string, diskUsage map[string]float64) bool {
 	if pageIndex < pageMustRepeat {
 		htmlResult[pageIndex] = make(map[string]string)
 
@@ -392,10 +401,10 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 			page.Navigate(request.Target)
 		}
 
-		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, htmlResult, screenshotResult)
+		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, htmlResult, screenshotResult, diskUsage)
 
 		if isFinish {
-			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, htmlResult, screenshotResult)
+			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, htmlResult, screenshotResult, diskUsage)
 		} else {
 			return false
 		}
@@ -408,7 +417,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 	return false
 }
 
-func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string, screenshotResult map[string]string) bool {
+func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string, screenshotResult map[string]string, diskUsage map[string]float64) bool {
 	red := color.New(color.FgRed).SprintFunc()
 
 	if current < total {
@@ -530,6 +539,16 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 			screenshotResult[strconv.Itoa(pageIndex)+"-"+flowData.Screenshot.Path] = pathReplaced
 
+			time.Sleep(1 * time.Second)
+
+			fileSize, errorFileSize := os.Stat(rootDirectory + pathReplaced)
+
+			if errorFileSize != nil {
+				log.Printf(red("[ Engine ] %v"), errorFileSize)
+			} else {
+				diskUsage["screenshot"] += float64(fileSize.Size())
+			}
+
 		} else if len(flowData.Take) > 0 {
 
 			// TODO Comment
@@ -541,7 +560,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			// noop
 		}
 
-		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, htmlResult, screenshotResult)
+		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, htmlResult, screenshotResult, diskUsage)
 	}
 
 	if current == total {
@@ -560,38 +579,51 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 	if current < total {
 		var takeData = take[current]
 		var fieldName string = takeData.Name
-		var fieldElement rod.Element
+		var hasElement bool = false
+		var detectedElement rod.Element
 
-		err := rod.Try(func() {
+		fieldError := rod.Try(func() {
 			if takeData.Selector != "" {
-				fieldElement = *page.Timeout(defaultTimeout).MustElement(takeData.Selector)
+				detectedElement = *page.Timeout(defaultTimeout).MustElement(takeData.Selector)
+				hasElement = true
 			}
 
 			if takeData.Contains.Selector != "" {
-				fieldElement = *page.Timeout(defaultTimeout).MustElementR(takeData.Contains.Selector, takeData.Contains.Identifier)
+				detectedElement = *page.Timeout(defaultTimeout).MustElementR(takeData.Contains.Selector, takeData.Contains.Identifier)
+				hasElement = true
 			}
 
 			if takeData.NextToSelector != "" {
-				fieldElement = *page.Timeout(defaultTimeout).MustElement(takeData.NextToSelector).MustNext()
+				detectedElement = *page.Timeout(defaultTimeout).MustElement(takeData.NextToSelector).MustNext()
+				hasElement = true
 			}
 
 			if takeData.NextToContains.Selector != "" {
-				fieldElement = *page.Timeout(defaultTimeout).MustElementR(takeData.NextToContains.Selector, takeData.NextToContains.Identifier).MustNext()
+				detectedElement = *page.Timeout(defaultTimeout).MustElementR(takeData.NextToContains.Selector, takeData.NextToContains.Identifier).MustNext()
+				hasElement = true
 			}
+		})
 
+		if errors.Is(fieldError, context.DeadlineExceeded) {
+			log.Println(red("[ Engine ] element " + fieldName + " not found"))
+		} else if fieldError != nil {
+			log.Printf(red("[ Engine ] %v"), fieldError)
+		}
+
+		if hasElement {
 			if takeData.Parse == "html" {
-				htmlResult[pageIndex][fieldName] = string(fieldElement.MustHTML())
+				htmlResult[pageIndex][fieldName] = string(detectedElement.MustHTML())
 			}
 
 			if takeData.Parse == "text" {
-				htmlResult[pageIndex][fieldName] = string(fieldElement.MustText())
+				htmlResult[pageIndex][fieldName] = string(detectedElement.MustText())
 			}
 
 			if takeData.Parse == "image" || takeData.Parse == "anchor" {
 				var sourceText string
 
 				if takeData.Parse == "image" {
-					source, _ := fieldElement.Attribute("src")
+					source, _ := detectedElement.Attribute("src")
 
 					if source != nil {
 						sourceText = *source
@@ -599,7 +631,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 				}
 
 				if takeData.Parse == "anchor" {
-					source, _ := fieldElement.Attribute("href")
+					source, _ := detectedElement.Attribute("href")
 
 					if source != nil {
 						sourceText = *source
@@ -613,7 +645,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 				htmlResult[pageIndex][fieldName] = string(fieldSource)
 
 			}
-		})
+		}
 
 		if takeData.Table.Selector != "" {
 			tableElement := page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector)
@@ -656,12 +688,6 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 
 				htmlResult[pageIndex][takeData.Table.Name+"_csv"] = string(csvResult)
 			}
-		}
-
-		if errors.Is(err, context.DeadlineExceeded) {
-			log.Println(red("[ Engine ] element " + fieldName + " not found"))
-		} else if err != nil {
-			panic(err)
 		}
 
 		HandleTakeLoop(take, current+1, total, page, pageId, pageIndex, htmlResult)

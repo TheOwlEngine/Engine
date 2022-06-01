@@ -1,22 +1,36 @@
 package types
 
+import "time"
+
+type ResponseUsage struct {
+	Disk      map[string]float64 `json:"disk,omitempty"`
+	Bandwidth map[string]float64 `json:"bandwidth,omitempty"`
+}
+
 type Response struct {
-	Id         string                    `json:"id,omitempty"`
-	Code       int                       `json:"code,omitempty"`
-	Name       string                    `json:"name,omitempty"`
-	Target     string                    `json:"target,omitempty"`
+	Id string `json:"id,omitempty"`
+
+	Code     int           `json:"code,omitempty"`
+	Name     string        `json:"name,omitempty"`
+	Slug     string        `json:"slug,omitempty"`
+	Message  string        `json:"message,omitempty"`
+	Duration time.Duration `json:"duration,omitempty"`
+
 	Engine     string                    `json:"engine,omitempty"`
-	Message    string                    `json:"message,omitempty"`
+	Target     string                    `json:"target,omitempty"`
+	Record     bool                      `json:"record"`
+	Repeat     int                       `json:"repeat"`
+	Paginate   bool                      `json:"paginate"`
 	Result     map[int]map[string]string `json:"html,omitempty"`
 	Screenshot map[string]string         `json:"screenshot,omitempty"`
 	Recording  string                    `json:"recording,omitempty"`
+	Usage      ResponseUsage             `json:"usage,omitempty"`
 }
 
 type Config struct {
 	Name     string `yaml:"name"`
 	Engine   string `yaml:"engine"`
 	Flow     []Flow `yaml:"flow"`
-	HtmlOnly bool   `yaml:"html_only"`
 	Paginate bool   `yaml:"paginate"`
 	Repeat   int    `yaml:"repeat"`
 	Target   string `yaml:"target"`
