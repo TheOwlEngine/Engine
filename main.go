@@ -54,8 +54,6 @@ var logsDirectory string
 
 var defaultTimeout time.Duration
 
-// TODO Comment
-// ....
 func main() {
 	godotenv.Load(".env")
 
@@ -134,7 +132,10 @@ func main() {
 					Delete("use-mock-keychain"). // delete flag mock keychain
 					NoSandbox(true).             // disable chromium sandbox
 					Headless(!engineDebug).      // set false to debug
-					MustLaunch()                 // launch the browser
+					Set(`--enable-usermedia-screen-capturing`).
+					Set(`--allow-http-screen-capture`).
+					Set(`--disable-infobars`).
+					MustLaunch() // launch the browser
 			} else {
 				userLauncher = launcher.New().
 					NoSandbox(true).        // disable chromium sandbox
@@ -166,8 +167,6 @@ func main() {
 	}
 }
 
-// TODO Comment
-// ....
 func HandleHTTPRequest() {
 	red := color.New(color.FgRed).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
@@ -201,8 +200,6 @@ func HandleHTTPRequest() {
 	panic(http.Serve(listener, nil))
 }
 
-// TODO Comment
-// ....
 func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
 	if (*r).Method == "OPTIONS" {
@@ -244,19 +241,25 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 				page := engineBrowser.MustPage()
 
 				// Enable screencast frame when user use record parameter
-				frameCount := 0
+				frameCounter := 0
 				diskUsage := make(map[string]float64)
 				bandwidthUsage := make(map[string]float64)
 
 				go page.EachEvent(func(e *proto.PageScreencastFrame) {
-					temporaryFilePath := videoDirectory + pageId + "-" + strconv.Itoa(frameCount) + "-frame.jpeg"
+					frameCount := "0" + strconv.Itoa(frameCounter)
+
+					if frameCounter > 9 {
+						frameCount = strconv.Itoa(frameCounter)
+					}
+
+					temporaryFilePath := videoDirectory + pageId + "-" + frameCount + "-frame.jpeg"
 
 					_ = utils.OutputFile(temporaryFilePath, e.Data)
 
 					proto.PageScreencastFrameAck{
 						SessionID: e.SessionID,
 					}.Call(page)
-					frameCount++
+					frameCounter++
 				}, func(e *proto.NetworkResponseReceived) {
 					bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
 				})()
@@ -383,8 +386,6 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO Comment
-// ....
 func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, htmlResult map[int]map[string]string, screenshotResult map[string]string, diskUsage map[string]float64) bool {
 	if pageIndex < pageMustRepeat {
 		htmlResult[pageIndex] = make(map[string]string)
@@ -424,38 +425,25 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 		var hasElement bool = false
 		var detectedElement *rod.Element
 
-		// TODO Comment
-		// ....
-
-		if flowData.Form.Selector != "" {
-			hasElement = true
-		}
-
-		// TODO Comment
-		// ....
-
-		if hasElement {
-			_, element, errorMessage := page.Has(flowData.Form.Selector)
-
-			if errorMessage != nil {
-				log.Println(red("[ Engine ] element " + flowData.Form.Selector + " not found"))
+		fieldError := rod.Try(func() {
+			if flowData.Form.Selector != "" {
+				detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Form.Selector)
+				hasElement = true
 			}
+		})
 
-			detectedElement = element
+		if errors.Is(fieldError, context.DeadlineExceeded) {
+			log.Println(red("[ Engine ] Selector " + flowData.Form.Selector + " not found"))
+		} else if fieldError != nil {
+			log.Printf(red("[ Engine ] %v"), fieldError)
 		}
 
 		if flowData.Delay != 0 {
-
-			// TODO Comment
-			// ....
 
 			var sleepTime int = int(flowData.Delay)
 			time.Sleep(time.Second * time.Duration(sleepTime))
 
 		} else if flowData.Navigate != "" {
-
-			// TODO Comment
-			// ....
 
 			err := rod.Try(func() {
 				page.Timeout(defaultTimeout).MustElementR("a", flowData.Navigate).MustClick()
@@ -467,48 +455,39 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 		} else if flowData.Form.Fill != "" {
 
-			// TODO Comment
-			// ....
-
-			if strings.Contains(flowData.Form.Fill, "$") {
-				detectedElement.MustInput(os.Getenv(strings.ReplaceAll(flowData.Form.Fill, "$", "")))
-			} else {
-				detectedElement.MustInput(flowData.Form.Fill)
+			if hasElement {
+				if strings.Contains(flowData.Form.Fill, "$") {
+					detectedElement.MustInput(os.Getenv(strings.ReplaceAll(flowData.Form.Fill, "$", "")))
+				} else {
+					detectedElement.MustInput(flowData.Form.Fill)
+				}
 			}
 
 		} else if flowData.Form.Do == "Enter" {
 
-			// TODO Comment
-			// ....
-
-			detectedElement.MustPress(input.Enter)
+			if hasElement {
+				detectedElement.MustPress(input.Enter)
+			}
 
 		} else if flowData.Form.Do == "Click" {
 
-			// TODO Comment
-			// ....
+			if hasElement {
+				detectedElement.MustClick()
 
-			detectedElement.MustClick()
+				err := rod.Try(func() {
+					page.Timeout(defaultTimeout).MustElement("body").MustWaitLoad()
+				})
 
-			err := rod.Try(func() {
-				page.Timeout(defaultTimeout).MustElement("body").MustWaitLoad()
-			})
-
-			if errors.Is(err, context.DeadlineExceeded) {
-				log.Println(red("[ Engine ] Can't wait for body loaded"))
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Println(red("[ Engine ] Can't wait for body loaded"))
+				}
 			}
 
 		} else if flowData.Screenshot.Path != "" {
 
-			// TODO Comment
-			// ....
-
 			screenshotPath := screenshotDirectory + pageId + "-" + strconv.Itoa(pageIndex) + "-" + flowData.Screenshot.Path
 
 			if flowData.Screenshot.Clip.Top != 0 || flowData.Screenshot.Clip.Left != 0 || flowData.Screenshot.Clip.Width != 0 || flowData.Screenshot.Clip.Height != 0 {
-
-				// TODO Comment
-				// ....
 
 				image, _ := page.Screenshot(true, &proto.PageCaptureScreenshot{
 					Format:  proto.PageCaptureScreenshotFormatJpeg,
@@ -525,9 +504,6 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 				_ = utils.OutputFile(screenshotPath, image)
 			} else {
-
-				// TODO Comment
-				// ....
 
 				page.MustScreenshot(screenshotPath)
 			}
@@ -549,9 +525,6 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 		} else if len(flowData.Take) > 0 {
 
-			// TODO Comment
-			// ....
-
 			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageId, pageIndex, htmlResult)
 
 		} else {
@@ -567,9 +540,6 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 	return false
 }
-
-// TODO Comment
-// ....
 
 func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string) bool {
 	red := color.New(color.FgRed).SprintFunc()
@@ -598,6 +568,11 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 
 			if takeData.NextToContains.Selector != "" {
 				detectedElement = *page.Timeout(defaultTimeout).MustElementR(takeData.NextToContains.Selector, takeData.NextToContains.Identifier).MustNext()
+				hasElement = true
+			}
+
+			if takeData.Table.Selector != "" {
+				detectedElement = *page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector)
 				hasElement = true
 			}
 		})
@@ -641,30 +616,29 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 				fieldSource := strings.ReplaceAll(pageDomain+"/"+sourceText, "//", "/")
 
 				htmlResult[pageIndex][fieldName] = string(fieldSource)
-
 			}
-		}
 
-		if takeData.Table.Selector != "" {
-			tableElement := page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector)
-			tableString := tableElement.MustHTML()
-			tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
-			tableTokenizer := html.NewTokenizer(tableToken)
-			tableRowCount := tableElement.MustEval("() => this.querySelectorAll('tr').length").Int()
+			if takeData.Table.Selector != "" {
+				tableElement := page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector)
+				tableString := tableElement.MustHTML()
+				tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
+				tableTokenizer := html.NewTokenizer(tableToken)
+				tableRowCount := tableElement.MustEval("() => this.querySelectorAll('tr').length").Int()
 
-			//                  row    column value
-			tableContent := make([]map[string]string, tableRowCount)
+				//                  row    column value
+				tableContent := make([]map[string]string, tableRowCount)
 
-			var tableRowCounter int = 0
-			var tableColumnCounter int = 0
+				var tableRowCounter int = 0
+				var tableColumnCounter int = 0
 
-			tableContent = extractTable(tableTokenizer, tableContent, takeData.Table.Fields, tableRowCounter, tableColumnCounter)
+				tableContent = extractTable(tableTokenizer, tableContent, takeData.Table.Fields, tableRowCounter, tableColumnCounter)
 
-			resultOfTable := tableContent[1:]
+				resultOfTable := tableContent[1:]
 
-			jsonTable, _ := json.Marshal(resultOfTable)
+				jsonTable, _ := json.Marshal(resultOfTable)
 
-			htmlResult[pageIndex][takeData.Table.Name] = string(jsonTable)
+				htmlResult[pageIndex][takeData.Table.Name] = string(jsonTable)
+			}
 		}
 
 		HandleTakeLoop(take, current+1, total, page, pageId, pageIndex, htmlResult)
@@ -730,8 +704,6 @@ func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string
 	}
 }
 
-// TODO Comment
-// ....
 func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
 	yellow := color.New(color.FgYellow).SprintFunc()
 
@@ -750,8 +722,6 @@ func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
 	w.Write([]byte(pathReplaced))
 }
 
-// TODO Comment
-// ....
 func Noop(w http.ResponseWriter, r *http.Request) {}
 
 func setupResponse(w *http.ResponseWriter, req *http.Request) {
