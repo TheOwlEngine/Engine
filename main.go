@@ -275,8 +275,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					}.Call(page)
 				}
 
-				htmlResult := make(map[int]map[string]string)
-				screenshotResult := make(map[string]string)
+				scraperResult := make(map[int]map[string]string)
 				videoResult := ""
 
 				pageRepeated := 1
@@ -297,7 +296,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
-				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, htmlResult, screenshotResult, diskUsage)
+				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, scraperResult, diskUsage)
 
 				if isFinish {
 					proto.PageStopScreencast{}.Call(page)
@@ -346,14 +345,10 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					Code: 200,
 				}
 
-				if len(htmlResult) > 0 {
-					if len(htmlResult[0]) > 0 {
-						resultJson.Result = htmlResult
+				if len(scraperResult) > 0 {
+					if len(scraperResult[0]) > 0 {
+						resultJson.Result = scraperResult
 					}
-				}
-
-				if len(screenshotResult) > 0 {
-					resultJson.Screenshot = screenshotResult
 				}
 
 				if videoResult != "" {
@@ -386,9 +381,9 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, htmlResult map[int]map[string]string, screenshotResult map[string]string, diskUsage map[string]float64) bool {
+func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, scraperResult map[int]map[string]string, diskUsage map[string]float64) bool {
 	if pageIndex < pageMustRepeat {
-		htmlResult[pageIndex] = make(map[string]string)
+		scraperResult[pageIndex] = make(map[string]string)
 
 		var allowToNavigate bool = true
 
@@ -400,10 +395,10 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 			page.Navigate(request.Target)
 		}
 
-		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, htmlResult, screenshotResult, diskUsage)
+		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, scraperResult, diskUsage)
 
 		if isFinish {
-			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, htmlResult, screenshotResult, diskUsage)
+			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, scraperResult, diskUsage)
 		} else {
 			return false
 		}
@@ -416,7 +411,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 	return false
 }
 
-func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string, screenshotResult map[string]string, diskUsage map[string]float64) bool {
+func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, scraperResult map[int]map[string]string, diskUsage map[string]float64) bool {
 	red := color.New(color.FgRed).SprintFunc()
 	currentTime := strconv.Itoa(int(time.Now().UnixMilli()))
 
@@ -512,7 +507,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
 			pathReplaced := pathReplacer.Replace(string(screenshotPath))
 
-			screenshotResult[currentTime+"_"+flowData.Screenshot.Path] = pathReplaced
+			scraperResult[pageIndex][currentTime+"_screenshot_"+flowData.Screenshot.Path] = pathReplaced
 
 			time.Sleep(1 * time.Second)
 
@@ -526,13 +521,13 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 		} else if len(flowData.Take) > 0 {
 
-			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageId, pageIndex, htmlResult)
+			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageId, pageIndex, scraperResult)
 
 		} else {
 			// noop
 		}
 
-		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, htmlResult, screenshotResult, diskUsage)
+		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, scraperResult, diskUsage)
 	}
 
 	if current == total {
@@ -542,7 +537,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 	return false
 }
 
-func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string) bool {
+func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, scraperResult map[int]map[string]string) bool {
 	red := color.New(color.FgRed).SprintFunc()
 	currentTime := strconv.Itoa(int(time.Now().UnixMilli()))
 
@@ -587,11 +582,11 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 
 		if hasElement {
 			if takeData.Parse == "html" {
-				htmlResult[pageIndex][currentTime+"_"+fieldName] = string(detectedElement.MustHTML())
+				scraperResult[pageIndex][currentTime+"_"+takeData.Parse+"_"+fieldName] = string(detectedElement.MustHTML())
 			}
 
 			if takeData.Parse == "text" {
-				htmlResult[pageIndex][currentTime+"_"+fieldName] = string(detectedElement.MustText())
+				scraperResult[pageIndex][currentTime+"_"+takeData.Parse+"_"+fieldName] = string(detectedElement.MustText())
 			}
 
 			if takeData.Parse == "image" || takeData.Parse == "anchor" {
@@ -617,7 +612,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 				pageDomain := pageLocation.Get("origin").String()
 				fieldSource := strings.ReplaceAll(pageDomain+"/"+sourceText, "//", "/")
 
-				htmlResult[pageIndex][currentTime+"_"+fieldName] = string(fieldSource)
+				scraperResult[pageIndex][currentTime+"_"+takeData.Parse+"_"+fieldName] = string(fieldSource)
 			}
 
 			if takeData.Table.Selector != "" {
@@ -639,11 +634,11 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 
 				jsonTable, _ := json.Marshal(resultOfTable)
 
-				htmlResult[pageIndex][currentTime+"_"+takeData.Table.Name] = string(jsonTable)
+				scraperResult[pageIndex][currentTime+"_table_"+takeData.Table.Name] = string(jsonTable)
 			}
 		}
 
-		HandleTakeLoop(take, current+1, total, page, pageId, pageIndex, htmlResult)
+		HandleTakeLoop(take, current+1, total, page, pageId, pageIndex, scraperResult)
 	}
 
 	if current == total {

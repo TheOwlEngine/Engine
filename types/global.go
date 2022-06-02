@@ -16,15 +16,14 @@ type Response struct {
 	Message  string        `json:"message,omitempty"`
 	Duration time.Duration `json:"duration,omitempty"`
 
-	Engine     string                    `json:"engine,omitempty"`
-	Target     string                    `json:"target,omitempty"`
-	Record     bool                      `json:"record"`
-	Repeat     int                       `json:"repeat"`
-	Paginate   bool                      `json:"paginate"`
-	Result     map[int]map[string]string `json:"html,omitempty"`
-	Screenshot map[string]string         `json:"screenshot,omitempty"`
-	Recording  string                    `json:"recording,omitempty"`
-	Usage      ResponseUsage             `json:"usage,omitempty"`
+	Engine    string                    `json:"engine,omitempty"`
+	Target    string                    `json:"target,omitempty"`
+	Record    bool                      `json:"record"`
+	Repeat    int                       `json:"repeat"`
+	Paginate  bool                      `json:"paginate"`
+	Result    map[int]map[string]string `json:"result,omitempty"`
+	Recording string                    `json:"recording,omitempty"`
+	Usage     ResponseUsage             `json:"usage,omitempty"`
 }
 
 type Config struct {
