@@ -418,6 +418,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, tota
 
 func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string, screenshotResult map[string]string, diskUsage map[string]float64) bool {
 	red := color.New(color.FgRed).SprintFunc()
+	currentTime := strconv.Itoa(int(time.Now().UnixMilli()))
 
 	if current < total {
 		flowData := flow[current]
@@ -511,7 +512,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
 			pathReplaced := pathReplacer.Replace(string(screenshotPath))
 
-			screenshotResult[strconv.Itoa(pageIndex)+"-"+flowData.Screenshot.Path] = pathReplaced
+			screenshotResult[currentTime+"_"+flowData.Screenshot.Path] = pathReplaced
 
 			time.Sleep(1 * time.Second)
 
@@ -543,6 +544,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, htmlResult map[int]map[string]string) bool {
 	red := color.New(color.FgRed).SprintFunc()
+	currentTime := strconv.Itoa(int(time.Now().UnixMilli()))
 
 	if current < total {
 		var takeData = take[current]
@@ -585,11 +587,11 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 
 		if hasElement {
 			if takeData.Parse == "html" {
-				htmlResult[pageIndex][fieldName] = string(detectedElement.MustHTML())
+				htmlResult[pageIndex][currentTime+"_"+fieldName] = string(detectedElement.MustHTML())
 			}
 
 			if takeData.Parse == "text" {
-				htmlResult[pageIndex][fieldName] = string(detectedElement.MustText())
+				htmlResult[pageIndex][currentTime+"_"+fieldName] = string(detectedElement.MustText())
 			}
 
 			if takeData.Parse == "image" || takeData.Parse == "anchor" {
@@ -615,7 +617,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 				pageDomain := pageLocation.Get("origin").String()
 				fieldSource := strings.ReplaceAll(pageDomain+"/"+sourceText, "//", "/")
 
-				htmlResult[pageIndex][fieldName] = string(fieldSource)
+				htmlResult[pageIndex][currentTime+"_"+fieldName] = string(fieldSource)
 			}
 
 			if takeData.Table.Selector != "" {
@@ -637,7 +639,7 @@ func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page
 
 				jsonTable, _ := json.Marshal(resultOfTable)
 
-				htmlResult[pageIndex][takeData.Table.Name] = string(jsonTable)
+				htmlResult[pageIndex][currentTime+"_"+takeData.Table.Name] = string(jsonTable)
 			}
 		}
 
