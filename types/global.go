@@ -34,7 +34,7 @@ type ResultPage struct {
 
 type ResultContent struct {
 	Type    string `json:"type,omitempty"`
-	Length  string `json:"length,omitempty"`
+	Length  int    `json:"length,omitempty"`
 	Name    string `json:"name,omitempty"`
 	Content string `json:"content,omitempty"`
 }

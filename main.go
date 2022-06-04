@@ -200,507 +200,6 @@ func HandleHTTPRequest() {
 	panic(http.Serve(listener, nil))
 }
 
-func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
-	if (*r).Method == "OPTIONS" {
-		return
-	}
-	unique := uuid.New().String()
-	pageId := unique[len(unique)-12:]
-	yellow := color.New(color.FgYellow).SprintFunc()
-	green := color.New(color.FgGreen).SprintFunc()
-	red := color.New(color.FgRed).SprintFunc()
-
-	switch r.Method {
-	case "POST":
-
-		// Declare a new Person struct.
-		var request types.Config
-
-		// Try to decode the request body into the struct. If there is an error,
-		// respond to the client with the error message and a 400 status code.
-		err := json.NewDecoder(r.Body).Decode(&request)
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		fmt.Printf("--- Create flow #%s - %s\n\n", green(pageId), green(request.Name))
-
-		rootChannel := make(chan interface{})
-
-		go func(rootChannel chan interface{}) {
-			log.Printf("%s Flow ID : %s", yellow("[ Engine ]"), pageId)
-			log.Printf("%s Flow name : %s", yellow("[ Engine ]"), request.Name)
-			log.Printf("%s Flow target : %s\n\n", yellow("[ Engine ]"), request.Target)
-			log.Printf("%s Starting flow", yellow("[ Engine ]"))
-
-			if len(request.Flow) > 0 {
-				start := time.Now()
-				page := engineBrowser.MustPage()
-
-				// Enable screencast frame when user use record parameter
-				frameCounter := 0
-				diskUsage := make(map[string]float64)
-				bandwidthUsage := make(map[string]float64)
-
-				go page.EachEvent(func(e *proto.PageScreencastFrame) {
-					frameCount := "0" + strconv.Itoa(frameCounter)
-
-					if frameCounter > 9 {
-						frameCount = strconv.Itoa(frameCounter)
-					}
-
-					temporaryFilePath := videoDirectory + pageId + "-" + frameCount + "-frame.jpeg"
-
-					_ = utils.OutputFile(temporaryFilePath, e.Data)
-
-					proto.PageScreencastFrameAck{
-						SessionID: e.SessionID,
-					}.Call(page)
-					frameCounter++
-				}, func(e *proto.NetworkResponseReceived) {
-					bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
-				})()
-
-				if request.Record {
-					quality := int(100)
-					everyNthFrame := int(1)
-
-					proto.PageStartScreencast{
-						Format:        "jpeg",
-						Quality:       &quality,
-						EveryNthFrame: &everyNthFrame,
-					}.Call(page)
-				}
-
-				scraperResult := make(map[int]map[string]string)
-				videoResult := ""
-
-				pageRepeated := 1
-
-				if request.Paginate && request.Repeat > 0 {
-					pageRepeated = request.Repeat
-				}
-
-				environmentRepetition := os.Getenv(`MAXIMUM_REPETITION`)
-
-				if environmentRepetition != "" {
-					maximumRepetition, _ := strconv.Atoi(environmentRepetition)
-
-					if pageRepeated > maximumRepetition {
-						log.Printf("%s Repeated parameter more than ENV want %d have %d", yellow("[ Engine ]"), maximumRepetition, pageRepeated)
-
-						pageRepeated = maximumRepetition
-					}
-				}
-
-				isFinish := HandleRepeatLoop(request, request.Flow, 1, len(request.Flow), page, pageId, 0, pageRepeated, scraperResult, diskUsage)
-
-				if isFinish {
-					proto.PageStopScreencast{}.Call(page)
-					page.MustClose()
-				}
-
-				// Delay two second
-				time.Sleep(1 * time.Second)
-
-				if request.Record {
-					_, videoPath := HandleRenderVideo(request.Name, pageId)
-
-					pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
-					pathReplaced := pathReplacer.Replace(string(videoPath))
-
-					videoResult = pathReplaced
-
-					time.Sleep(1 * time.Second)
-
-					fileSize, errorFileSize := os.Stat(rootDirectory + pathReplaced)
-
-					if errorFileSize != nil {
-						log.Printf(red("[ Engine ] %v"), errorFileSize)
-					} else {
-						diskUsage["video"] += float64(fileSize.Size())
-					}
-				}
-
-				slugName := slug.Make(request.Name)
-				sluggableName := slugName + "-" + pageId
-
-				resultJson := types.Response{
-					Id:       pageId,
-					Name:     request.Name,
-					Slug:     sluggableName,
-					Target:   request.Target,
-					Engine:   request.Engine,
-					Record:   request.Record,
-					Repeat:   pageRepeated,
-					Paginate: request.Paginate,
-					Duration: time.Since(start) / 1000000, // milisecond
-					Usage: types.ResponseUsage{
-						Bandwidth: bandwidthUsage,
-						Disk:      diskUsage,
-					},
-					Code: 200,
-				}
-
-				if len(scraperResult) > 0 {
-					if len(scraperResult[0]) > 0 {
-						resultJson.Result = scraperResult
-					}
-				}
-
-				if videoResult != "" {
-					resultJson.Recording = videoResult
-				}
-
-				rootChannel <- resultJson
-			} else {
-				resultJson := types.Response{
-					Code:    200,
-					Message: "Flow not found for " + pageId,
-				}
-
-				rootChannel <- resultJson
-			}
-		}(rootChannel)
-
-		result := <-rootChannel
-
-		HandleResponse(w, result, pageId)
-
-		log.Printf("%s Flow closed\n\n", yellow("[ Engine ]"))
-	default:
-		resultJson := types.Response{
-			Code:    403,
-			Message: "Method not allowed for this request",
-		}
-
-		HandleResponse(w, resultJson, "")
-	}
-}
-
-func HandleRepeatLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, pageMustRepeat int, scraperResult map[int]map[string]string, diskUsage map[string]float64) bool {
-	if pageIndex < pageMustRepeat {
-		scraperResult[pageIndex] = make(map[string]string)
-
-		var allowToNavigate bool = true
-
-		if pageIndex > 0 && request.Paginate {
-			allowToNavigate = false
-		}
-
-		if allowToNavigate {
-			page.Navigate(request.Target)
-		}
-
-		isFinish := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex, scraperResult, diskUsage)
-
-		if isFinish {
-			return HandleRepeatLoop(request, request.Flow, 0, len(request.Flow), page, pageId, pageIndex+1, pageMustRepeat, scraperResult, diskUsage)
-		} else {
-			return false
-		}
-	}
-
-	if pageIndex == pageMustRepeat {
-		return true
-	}
-
-	return false
-}
-
-func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, pageIndex int, scraperResult map[int]map[string]string, diskUsage map[string]float64) bool {
-	red := color.New(color.FgRed).SprintFunc()
-	currentTime := strconv.Itoa(int(time.Now().UnixMilli()))
-
-	if current < total {
-		flowData := flow[current]
-
-		var hasElement bool = false
-		var detectedElement *rod.Element
-
-		fieldError := rod.Try(func() {
-			if flowData.Form.Selector != "" {
-				detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Form.Selector)
-				hasElement = true
-			}
-		})
-
-		if errors.Is(fieldError, context.DeadlineExceeded) {
-			log.Println(red("[ Engine ] Selector " + flowData.Form.Selector + " not found"))
-		} else if fieldError != nil {
-			log.Printf(red("[ Engine ] %v"), fieldError)
-		}
-
-		if flowData.Delay != 0 {
-
-			var sleepTime int = int(flowData.Delay)
-			time.Sleep(time.Second * time.Duration(sleepTime))
-
-		} else if flowData.Navigate != "" {
-
-			err := rod.Try(func() {
-				page.Timeout(defaultTimeout).MustElementR("a", flowData.Navigate).MustClick()
-			})
-
-			if errors.Is(err, context.DeadlineExceeded) {
-				log.Println(red("[ Engine ] Anchor " + flowData.Navigate + " not found"))
-			}
-
-		} else if flowData.Form.Fill != "" {
-
-			if hasElement {
-				if strings.Contains(flowData.Form.Fill, "$") {
-					detectedElement.MustInput(os.Getenv(strings.ReplaceAll(flowData.Form.Fill, "$", "")))
-				} else {
-					detectedElement.MustInput(flowData.Form.Fill)
-				}
-			}
-
-		} else if flowData.Form.Do == "Enter" {
-
-			if hasElement {
-				detectedElement.MustPress(input.Enter)
-			}
-
-		} else if flowData.Form.Do == "Click" {
-
-			if hasElement {
-				detectedElement.MustClick()
-
-				err := rod.Try(func() {
-					page.Timeout(defaultTimeout).MustElement("body").MustWaitLoad()
-				})
-
-				if errors.Is(err, context.DeadlineExceeded) {
-					log.Println(red("[ Engine ] Can't wait for body loaded"))
-				}
-			}
-
-		} else if flowData.Screenshot.Path != "" {
-
-			screenshotPath := screenshotDirectory + pageId + "-" + strconv.Itoa(pageIndex) + "-" + flowData.Screenshot.Path
-
-			if flowData.Screenshot.Clip.Top != 0 || flowData.Screenshot.Clip.Left != 0 || flowData.Screenshot.Clip.Width != 0 || flowData.Screenshot.Clip.Height != 0 {
-
-				image, _ := page.Screenshot(true, &proto.PageCaptureScreenshot{
-					Format:  proto.PageCaptureScreenshotFormatJpeg,
-					Quality: gson.Int(100),
-					Clip: &proto.PageViewport{
-						X:      flowData.Screenshot.Clip.Top,
-						Y:      flowData.Screenshot.Clip.Left,
-						Width:  flowData.Screenshot.Clip.Width,
-						Height: flowData.Screenshot.Clip.Height,
-						Scale:  1,
-					},
-					FromSurface: true,
-				})
-
-				_ = utils.OutputFile(screenshotPath, image)
-			} else {
-
-				page.MustScreenshot(screenshotPath)
-			}
-
-			pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
-			pathReplaced := pathReplacer.Replace(string(screenshotPath))
-
-			scraperResult[pageIndex][currentTime+"_screenshot_"+flowData.Screenshot.Path] = pathReplaced
-
-			time.Sleep(1 * time.Second)
-
-			fileSize, errorFileSize := os.Stat(rootDirectory + pathReplaced)
-
-			if errorFileSize != nil {
-				log.Printf(red("[ Engine ] %v"), errorFileSize)
-			} else {
-				diskUsage["screenshot"] += float64(fileSize.Size())
-			}
-
-		} else if len(flowData.Take) > 0 {
-
-			HandleTakeLoop(flowData.Take, 0, len(flowData.Take), page, pageId, pageIndex, scraperResult)
-
-		} else {
-			// noop
-		}
-
-		return HandleFlowLoop(request, flow, current+1, total, page, pageId, pageIndex, scraperResult, diskUsage)
-	}
-
-	if current == total {
-		return true
-	}
-
-	return false
-}
-
-func HandleTakeLoop(take []types.Element, current int, total int, page *rod.Page, pageId string, pageIndex int, scraperResult map[int]map[string]string) bool {
-	red := color.New(color.FgRed).SprintFunc()
-	currentTime := strconv.Itoa(int(time.Now().UnixMilli()))
-
-	if current < total {
-		var takeData = take[current]
-		var fieldName string = takeData.Name
-		var hasElement bool = false
-		var detectedElement rod.Element
-
-		fieldError := rod.Try(func() {
-			if takeData.Selector != "" {
-				detectedElement = *page.Timeout(defaultTimeout).MustElement(takeData.Selector)
-				hasElement = true
-			}
-
-			if takeData.Contains.Selector != "" {
-				detectedElement = *page.Timeout(defaultTimeout).MustElementR(takeData.Contains.Selector, takeData.Contains.Identifier)
-				hasElement = true
-			}
-
-			if takeData.NextToSelector != "" {
-				detectedElement = *page.Timeout(defaultTimeout).MustElement(takeData.NextToSelector).MustNext()
-				hasElement = true
-			}
-
-			if takeData.NextToContains.Selector != "" {
-				detectedElement = *page.Timeout(defaultTimeout).MustElementR(takeData.NextToContains.Selector, takeData.NextToContains.Identifier).MustNext()
-				hasElement = true
-			}
-
-			if takeData.Table.Selector != "" {
-				detectedElement = *page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector)
-				hasElement = true
-			}
-		})
-
-		if errors.Is(fieldError, context.DeadlineExceeded) {
-			log.Println(red("[ Engine ] element " + fieldName + " not found"))
-		} else if fieldError != nil {
-			log.Printf(red("[ Engine ] %v"), fieldError)
-		}
-
-		if hasElement {
-			if takeData.Parse == "html" {
-				scraperResult[pageIndex][currentTime+"_"+takeData.Parse+"_"+fieldName] = string(detectedElement.MustHTML())
-			}
-
-			if takeData.Parse == "text" {
-				scraperResult[pageIndex][currentTime+"_"+takeData.Parse+"_"+fieldName] = string(detectedElement.MustText())
-			}
-
-			if takeData.Parse == "image" || takeData.Parse == "anchor" {
-				var sourceText string
-
-				if takeData.Parse == "image" {
-					source, _ := detectedElement.Attribute("src")
-
-					if source != nil {
-						sourceText = *source
-					}
-				}
-
-				if takeData.Parse == "anchor" {
-					source, _ := detectedElement.Attribute("href")
-
-					if source != nil {
-						sourceText = *source
-					}
-				}
-
-				pageLocation := page.MustEval("() => window.location")
-				pageDomain := pageLocation.Get("origin").String()
-				fieldSource := strings.ReplaceAll(pageDomain+"/"+sourceText, "//", "/")
-
-				scraperResult[pageIndex][currentTime+"_"+takeData.Parse+"_"+fieldName] = string(fieldSource)
-			}
-
-			if takeData.Table.Selector != "" {
-				tableElement := page.Timeout(defaultTimeout).MustElement(takeData.Table.Selector)
-				tableString := tableElement.MustHTML()
-				tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
-				tableTokenizer := html.NewTokenizer(tableToken)
-				tableRowCount := tableElement.MustEval("() => this.querySelectorAll('tr').length").Int()
-
-				//                  row    column value
-				tableContent := make([]map[string]string, tableRowCount)
-
-				var tableRowCounter int = 0
-				var tableColumnCounter int = 0
-
-				tableContent = extractTable(tableTokenizer, tableContent, takeData.Table.Fields, tableRowCounter, tableColumnCounter)
-
-				resultOfTable := tableContent[1:]
-
-				jsonTable, _ := json.Marshal(resultOfTable)
-
-				scraperResult[pageIndex][currentTime+"_table_"+takeData.Table.Name] = string(jsonTable)
-			}
-		}
-
-		HandleTakeLoop(take, current+1, total, page, pageId, pageIndex, scraperResult)
-	}
-
-	if current == total {
-		return true
-	}
-
-	return false
-}
-
-func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string, tableFields []types.ElementTableField, tableRowCounter int, tableColumnCounter int) []map[string]string {
-	var isContinue bool = true
-	tableRow := tableElement.Next()
-
-	if tableRow == html.StartTagToken {
-		tableData := tableElement.Token()
-
-		if tableData.Data == "tr" {
-			tableContent[tableRowCounter] = make(map[string]string)
-			tableColumnCounter = 0
-		}
-
-		if tableData.Data == "td" {
-			inner := tableElement.Next()
-
-			if inner == html.TextToken {
-				for _, field := range tableFields {
-					if tableColumnCounter == field.Index {
-						tableText := (string)(tableElement.Text())
-						tableData := strings.TrimSpace(tableText)
-
-						columnValue := tableFields[field.Index].Name
-
-						tableContent[tableRowCounter][columnValue] = tableData
-					}
-				}
-			}
-		}
-	}
-
-	if tableRow == html.EndTagToken {
-		tagElement := tableElement.Token()
-
-		if tagElement.Data == "tr" {
-			tableRowCounter++
-		}
-
-		if tagElement.Data == "td" {
-			tableColumnCounter++
-		}
-
-		if tagElement.Data == "table" {
-			isContinue = false
-		}
-	}
-
-	if isContinue {
-		return extractTable(tableElement, tableContent, tableFields, tableRowCounter, tableColumnCounter)
-	} else {
-		return tableContent
-	}
-}
-
 func HandleResponse(w http.ResponseWriter, data interface{}, pageId string) {
 	yellow := color.New(color.FgYellow).SprintFunc()
 
@@ -799,4 +298,516 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 	}()
 
 	return videoName, videoPath
+}
+
+func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
+	setupResponse(&w, r)
+	if (*r).Method == "OPTIONS" {
+		return
+	}
+	unique := uuid.New().String()
+	pageId := unique[len(unique)-12:]
+	yellow := color.New(color.FgYellow).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+	red := color.New(color.FgRed).SprintFunc()
+
+	switch r.Method {
+	case "POST":
+
+		// Declare a new Person struct.
+		var request types.Config
+
+		// Try to decode the request body into the struct. If there is an error,
+		// respond to the client with the error message and a 400 status code.
+		err := json.NewDecoder(r.Body).Decode(&request)
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		fmt.Printf("--- Create flow #%s - %s\n\n", green(pageId), green(request.Name))
+
+		rootChannel := make(chan interface{})
+
+		go func(rootChannel chan interface{}) {
+			log.Printf("%s Flow ID : %s", yellow("[ Engine ]"), pageId)
+			log.Printf("%s Flow name : %s", yellow("[ Engine ]"), request.Name)
+			log.Printf("%s Flow target : %s\n\n", yellow("[ Engine ]"), request.EntryPage)
+			log.Printf("%s Starting flow", yellow("[ Engine ]"))
+
+			if len(request.Flow) > 0 {
+				start := time.Now()
+				page := engineBrowser.MustPage()
+
+				// Enable screencast frame when user use record parameter
+				frameCounter := 0
+				diskUsage := make(map[string]float64)
+				bandwidthUsage := make(map[string]float64)
+
+				go page.EachEvent(func(e *proto.PageScreencastFrame) {
+					frameCount := "0" + strconv.Itoa(frameCounter)
+
+					if frameCounter > 9 {
+						frameCount = strconv.Itoa(frameCounter)
+					}
+
+					temporaryFilePath := videoDirectory + pageId + "-" + frameCount + "-frame.jpeg"
+
+					_ = utils.OutputFile(temporaryFilePath, e.Data)
+
+					proto.PageScreencastFrameAck{
+						SessionID: e.SessionID,
+					}.Call(page)
+					frameCounter++
+				}, func(e *proto.NetworkResponseReceived) {
+					bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
+				})()
+
+				if request.Record {
+					quality := int(100)
+					everyNthFrame := int(1)
+
+					proto.PageStartScreencast{
+						Format:        "jpeg",
+						Quality:       &quality,
+						EveryNthFrame: &everyNthFrame,
+					}.Call(page)
+				}
+
+				paginateLimit := 1
+
+				if request.Paginate && request.PaginateLimit > 0 {
+					paginateLimit = request.PaginateLimit
+				}
+
+				temporaryScraperResult := make([]types.ResultPage, 0, paginateLimit)
+				recordResult := ""
+
+				environmentRepetition := os.Getenv(`MAX_PAGINATE_LIMIT`)
+
+				if environmentRepetition != "" {
+					maximumRepetition, _ := strconv.Atoi(environmentRepetition)
+
+					if paginateLimit > maximumRepetition {
+						log.Printf("%s Limit parameter more than ENV want %d have %d", yellow("[ Engine ]"), maximumRepetition, paginateLimit)
+
+						paginateLimit = maximumRepetition
+					}
+				}
+
+				isFinish, scraperResult := HandleRepeatLoop(request, request.Flow, page, pageId, 0, paginateLimit, temporaryScraperResult, diskUsage)
+
+				if isFinish {
+					proto.PageStopScreencast{}.Call(page)
+					page.MustClose()
+				}
+
+				// Delay two second
+				time.Sleep(1 * time.Second)
+
+				if request.Record {
+					_, videoPath := HandleRenderVideo(request.Name, pageId)
+
+					pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
+					pathReplaced := pathReplacer.Replace(string(videoPath))
+
+					recordResult = pathReplaced
+
+					time.Sleep(1 * time.Second)
+
+					fileSize, errorFileSize := os.Stat(rootDirectory + pathReplaced)
+
+					if errorFileSize != nil {
+						log.Printf(red("[ Engine ] %v"), errorFileSize)
+					} else {
+						diskUsage["video"] += float64(fileSize.Size())
+					}
+				}
+
+				slugName := slug.Make(request.Name)
+				sluggableName := slugName + "-" + pageId
+
+				resultJson := types.Result{
+					Id:             pageId,
+					Code:           200,
+					Name:           request.Name,
+					Slug:           sluggableName,
+					Message:        "-",
+					Duration:       time.Since(start) / 1000000, // milisecond,
+					Engine:         request.Engine,
+					EntryPage:      request.EntryPage,
+					ItemsOnPage:    request.ItemsOnPage,
+					Infinite:       request.Infinite,
+					InfiniteDelay:  request.InfiniteDelay,
+					Paginate:       request.Paginate,
+					PaginateButton: request.PaginateButton,
+					PaginateLimit:  paginateLimit,
+					Record:         request.Record,
+					Usage: types.ResultUsage{
+						Bandwidth: bandwidthUsage,
+						Disk:      diskUsage,
+					},
+				}
+
+				if len(scraperResult) > 0 {
+					resultJson.Result = scraperResult
+				}
+
+				if recordResult != "" {
+					resultJson.Recording = recordResult
+				}
+
+				rootChannel <- resultJson
+			} else {
+				resultJson := types.Result{
+					Code:    404,
+					Message: "Flow not found for " + pageId,
+				}
+
+				rootChannel <- resultJson
+			}
+		}(rootChannel)
+
+		result := <-rootChannel
+
+		HandleResponse(w, result, pageId)
+
+		log.Printf("%s Flow closed\n\n", yellow("[ Engine ]"))
+	default:
+		resultJson := types.Result{
+			Code:    400,
+			Message: "Method not allowed for this request",
+		}
+
+		HandleResponse(w, resultJson, "")
+	}
+}
+
+func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, pageId string, paginateIndex int, paginateLimit int, scraperResult []types.ResultPage, diskUsage map[string]float64) (bool, []types.ResultPage) {
+	if paginateIndex < paginateLimit {
+
+		if paginateIndex == 0 {
+			page.Navigate(request.EntryPage)
+		}
+
+		pageStart := time.Now()
+		temporaryContents := make([]types.ResultContent, 0, len(request.Flow))
+		pageResult := types.ResultPage{
+			Title: page.MustInfo().Title,
+			Url:   page.MustInfo().URL,
+			Page:  paginateIndex,
+		}
+
+		isFinish, pageContents := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, paginateIndex, temporaryContents, diskUsage)
+
+		if isFinish {
+			pageResult.Duration = time.Since(pageStart) / 1000000
+			pageResult.Contents = pageContents
+			pageResult.Usage = types.ResultUsage{}
+
+			scraperResult = append(scraperResult, pageResult)
+
+			return HandleRepeatLoop(request, request.Flow, page, pageId, paginateIndex+1, paginateLimit, scraperResult, diskUsage)
+		} else {
+			return false, scraperResult
+		}
+	}
+
+	if paginateIndex == paginateLimit {
+		return true, scraperResult
+	}
+
+	return false, scraperResult
+}
+
+func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, paginateIndex int, pageContents []types.ResultContent, diskUsage map[string]float64) (bool, []types.ResultContent) {
+	red := color.New(color.FgRed).SprintFunc()
+	// currentTime := strconv.Itoa(int(time.Now().UnixMilli()))
+
+	if current < total {
+		flowData := flow[current]
+
+		var fieldName string = ""
+		var hasElement bool = false
+		var detectedElement *rod.Element
+
+		fieldError := rod.Try(func() {
+			if flowData.Element.Selector != "" {
+				detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Element.Selector)
+				hasElement = true
+			}
+		})
+
+		if errors.Is(fieldError, context.DeadlineExceeded) {
+			log.Println(red("[ Engine ] Selector " + flowData.Element.Selector + " not found"))
+		} else if fieldError != nil {
+			log.Printf(red("[ Engine ] %v"), fieldError)
+		}
+
+		if flowData.Delay != 0 {
+
+			var sleepTime int = int(flowData.Delay)
+			time.Sleep(time.Second * time.Duration(sleepTime))
+
+		} else if flowData.Navigate != "" {
+
+			err := rod.Try(func() {
+				page.Timeout(defaultTimeout).MustElementR("a", flowData.Navigate).MustClick()
+			})
+
+			if errors.Is(err, context.DeadlineExceeded) {
+				log.Println(red("[ Engine ] Anchor " + flowData.Navigate + " not found"))
+			}
+
+		} else if flowData.Element.Write != "" {
+
+			if hasElement {
+				if strings.Contains(flowData.Element.Write, "$") {
+					detectedElement.MustInput(os.Getenv(strings.ReplaceAll(flowData.Element.Write, "$", "")))
+				} else {
+					detectedElement.MustInput(flowData.Element.Write)
+				}
+			}
+
+		} else if flowData.Element.Action == "Enter" {
+
+			if hasElement {
+				detectedElement.MustPress(input.Enter)
+			}
+
+		} else if flowData.Element.Action == "Click" {
+
+			if hasElement {
+				detectedElement.MustClick()
+
+				err := rod.Try(func() {
+					page.Timeout(defaultTimeout).MustElement("body").MustWaitLoad()
+				})
+
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Println(red("[ Engine ] Can't wait for body loaded"))
+				}
+			}
+
+		} else if flowData.Capture.Path != "" {
+
+			screenshotPath := screenshotDirectory + pageId + "-" + strconv.Itoa(paginateIndex) + "-" + flowData.Capture.Path
+
+			if flowData.Capture.Clip.Top != 0 || flowData.Capture.Clip.Left != 0 || flowData.Capture.Clip.Width != 0 || flowData.Capture.Clip.Height != 0 {
+
+				image, _ := page.Screenshot(true, &proto.PageCaptureScreenshot{
+					Format:  proto.PageCaptureScreenshotFormatJpeg,
+					Quality: gson.Int(100),
+					Clip: &proto.PageViewport{
+						X:      flowData.Capture.Clip.Top,
+						Y:      flowData.Capture.Clip.Left,
+						Width:  flowData.Capture.Clip.Width,
+						Height: flowData.Capture.Clip.Height,
+						Scale:  1,
+					},
+					FromSurface: true,
+				})
+
+				_ = utils.OutputFile(screenshotPath, image)
+			} else {
+
+				page.MustScreenshot(screenshotPath)
+			}
+
+			pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
+			pathReplaced := pathReplacer.Replace(string(screenshotPath))
+
+			time.Sleep(1 * time.Second)
+
+			fileSize, errorFileSize := os.Stat(rootDirectory + pathReplaced)
+
+			if errorFileSize != nil {
+				log.Printf(red("[ Engine ] %v"), errorFileSize)
+			} else {
+				diskUsage["screenshot"] += float64(fileSize.Size())
+			}
+
+			pageContents = append(pageContents, types.ResultContent{
+				Type:    "screenshot",
+				Length:  int(fileSize.Size()),
+				Name:    flowData.Capture.Path,
+				Content: pathReplaced,
+			})
+		} else if flowData.Take.Name != "" {
+
+			fieldError := rod.Try(func() {
+				if flowData.Take.Selector != "" {
+					detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Take.Selector)
+					hasElement = true
+				}
+
+				if flowData.Take.Contains.Selector != "" {
+					detectedElement = page.Timeout(defaultTimeout).MustElementR(flowData.Take.Contains.Selector, flowData.Take.Contains.Identifier)
+					hasElement = true
+				}
+
+				if flowData.Take.NextToSelector != "" {
+					detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Take.NextToSelector).MustNext()
+					hasElement = true
+				}
+
+				if flowData.Take.NextToContains.Selector != "" {
+					detectedElement = page.Timeout(defaultTimeout).MustElementR(flowData.Take.NextToContains.Selector, flowData.Take.NextToContains.Identifier).MustNext()
+					hasElement = true
+				}
+
+				// if flowData.Take.Table.Selector != "" {
+				// 	detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Take.Table.Selector)
+				// 	hasElement = true
+				// }
+			})
+
+			if errors.Is(fieldError, context.DeadlineExceeded) {
+				log.Println(red("[ Engine ] element " + fieldName + " not found"))
+			} else if fieldError != nil {
+				log.Printf(red("[ Engine ] %v"), fieldError)
+			}
+
+			if hasElement {
+				if flowData.Take.Parse == "html" {
+					pageContents = append(pageContents, types.ResultContent{
+						Type:    "html",
+						Length:  len(string(detectedElement.MustHTML())),
+						Name:    fieldName,
+						Content: string(detectedElement.MustHTML()),
+					})
+				}
+
+				if flowData.Take.Parse == "text" {
+					pageContents = append(pageContents, types.ResultContent{
+						Type:    "text",
+						Length:  len(string(detectedElement.MustText())),
+						Name:    fieldName,
+						Content: string(detectedElement.MustText()),
+					})
+				}
+
+				if flowData.Take.Parse == "image" || flowData.Take.Parse == "anchor" {
+					var sourceText string
+
+					if flowData.Take.Parse == "image" {
+						source, _ := detectedElement.Attribute("src")
+
+						if source != nil {
+							sourceText = *source
+						}
+					}
+
+					if flowData.Take.Parse == "anchor" {
+						source, _ := detectedElement.Attribute("href")
+
+						if source != nil {
+							sourceText = *source
+						}
+					}
+
+					pageLocation := page.MustEval("() => window.location")
+					pageDomain := pageLocation.Get("origin").String()
+					fieldSource := strings.ReplaceAll(pageDomain+"/"+sourceText, "//", "/")
+
+					pageContents = append(pageContents, types.ResultContent{
+						Type:    flowData.Take.Parse,
+						Length:  len(fieldSource),
+						Name:    fieldName,
+						Content: string(fieldSource),
+					})
+				}
+			}
+
+		} else if flowData.Table.Selector != "" {
+			tableElement := page.Timeout(defaultTimeout).MustElement(flowData.Table.Selector)
+			tableString := tableElement.MustHTML()
+			tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
+			tableTokenizer := html.NewTokenizer(tableToken)
+			tableRowCount := tableElement.MustEval("() => this.querySelectorAll('tr').length").Int()
+
+			//                  row    column value
+			tableContent := make([]map[string]string, tableRowCount)
+
+			var tableRowCounter int = 0
+			var tableColumnCounter int = 0
+
+			tableContent = extractTable(tableTokenizer, tableContent, flowData.Table.Fields, tableRowCounter, tableColumnCounter)
+
+			resultOfTable := tableContent[1:]
+
+			jsonTable, _ := json.Marshal(resultOfTable)
+
+			pageContents = append(pageContents, types.ResultContent{
+				Type:    "table",
+				Length:  len(jsonTable),
+				Name:    flowData.Table.Name,
+				Content: string(jsonTable),
+			})
+		} else {
+			// noop
+		}
+
+		return HandleFlowLoop(request, flow, current+1, total, page, pageId, paginateIndex, pageContents, diskUsage)
+	}
+
+	if current == total {
+		return true, pageContents
+	}
+
+	return false, pageContents
+}
+
+func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string, tableFields []types.TableField, tableRowCounter int, tableColumnCounter int) []map[string]string {
+	var isContinue bool = true
+	tableRow := tableElement.Next()
+
+	if tableRow == html.StartTagToken {
+		tableData := tableElement.Token()
+
+		if tableData.Data == "tr" {
+			tableContent[tableRowCounter] = make(map[string]string)
+			tableColumnCounter = 0
+		}
+
+		if tableData.Data == "td" {
+			inner := tableElement.Next()
+
+			if inner == html.TextToken {
+				for _, field := range tableFields {
+					if tableColumnCounter == field.Index {
+						tableText := (string)(tableElement.Text())
+						tableData := strings.TrimSpace(tableText)
+
+						columnValue := tableFields[field.Index].Name
+
+						tableContent[tableRowCounter][columnValue] = tableData
+					}
+				}
+			}
+		}
+	}
+
+	if tableRow == html.EndTagToken {
+		tagElement := tableElement.Token()
+
+		if tagElement.Data == "tr" {
+			tableRowCounter++
+		}
+
+		if tagElement.Data == "td" {
+			tableColumnCounter++
+		}
+
+		if tagElement.Data == "table" {
+			isContinue = false
+		}
+	}
+
+	if isContinue {
+		return extractTable(tableElement, tableContent, tableFields, tableRowCounter, tableColumnCounter)
+	} else {
+		return tableContent
+	}
 }

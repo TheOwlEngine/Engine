@@ -1,0 +1,48 @@
+# Set name
+name: Wordpress Theme Picker
+
+# Set engine
+engine: http://127.0.0.1:3000
+
+# Set entry page
+entry_page: https://wordpress.org/themes/
+
+# Set items on page
+items_on_page: 12
+
+# Set infinite
+# infinite: 
+
+# Set infinite delay
+# infinite_delay: 
+
+# Set paginate
+paginate: true
+
+# Set paginate button
+paginate_button: ".js-load-more-themes"
+
+# Set paginate limit
+paginate_limit: 2
+
+# Set proxy
+# proxy: true
+
+# Set proxy country
+# proxy_country: ID
+
+# Set record
+# record: true
+
+# Flow process
+flow:
+
+  # Get heading  page as heading
+  - take:
+      selector: .theme a
+      name: Page Detail
+      parse: anchor
+      use_for_navigate: true
+
+  - capture:
+      path: sample.jpg
