@@ -97,28 +97,32 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 
 		log.Printf("%s Flow %s started", blue("[Owl]"), green(config.Name))
 		loading := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-		loading.Suffix = "  scraping target " + config.Target
+		loading.Suffix = "  scraping website " + config.EntryPage
 		loading.Start()
 
 		body := types.Config{
-			Name:     config.Name,
-			Engine:   config.Engine,
-			Flow:     config.Flow,
-			Paginate: config.Paginate,
-			Repeat:   config.Repeat,
-			Target:   config.Target,
-			Record:   config.Record,
+			Name:           config.Name,
+			Engine:         config.Engine,
+			EntryPage:      config.EntryPage,
+			ItemsOnPage:    config.ItemsOnPage,
+			Infinite:       config.Infinite,
+			InfiniteDelay:  config.InfiniteDelay,
+			Paginate:       config.Paginate,
+			PaginateButton: config.PaginateButton,
+			PaginateLimit:  config.PaginateLimit,
+			Record:         config.Record,
+			Flow:           config.Flow,
 		}
 
 		errorGroup.Go(func() error { return sendRequest(body, requestChan) })
 
-		requestResponse := <-requestChan
+		requestResult := <-requestChan
 
-		defer requestResponse.Body.Close()
+		defer requestResult.Body.Close()
 
-		var result types.Response
+		var result types.Result
 
-		resultBody, _ := ioutil.ReadAll(requestResponse.Body)
+		resultBody, _ := ioutil.ReadAll(requestResult.Body)
 
 		loading.Stop()
 
@@ -168,9 +172,9 @@ func readConfig(filename string) (*types.Config, error) {
 
 func sendRequest(data types.Config, requestChan chan *http.Response) error {
 	body, _ := json.Marshal(data)
-	response, httpError := http.Post(data.Engine, "application/json", bytes.NewReader(body))
+	result, httpError := http.Post(data.Engine, "application/json", bytes.NewReader(body))
 
-	requestChan <- response
+	requestChan <- result
 
 	return httpError
 }
