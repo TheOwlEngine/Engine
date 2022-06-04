@@ -54,6 +54,8 @@ type Config struct {
 	Paginate       bool   `yaml:"paginate"`
 	PaginateButton string `yaml:"paginate_button"`
 	PaginateLimit  int    `yaml:"paginate_limit"`
+	Proxy          bool   `yaml:"proxy"`
+	ProxyCountry   string `yaml:"proxy_country"`
 	Record         bool   `yaml:"record"`
 	Flow           []Flow `yaml:"flow"`
 }

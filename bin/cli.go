@@ -110,6 +110,8 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 			Paginate:       config.Paginate,
 			PaginateButton: config.PaginateButton,
 			PaginateLimit:  config.PaginateLimit,
+			Proxy:          config.Proxy,
+			ProxyCountry:   config.ProxyCountry,
 			Record:         config.Record,
 			Flow:           config.Flow,
 		}
