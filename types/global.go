@@ -4,37 +4,38 @@ import "time"
 
 type Result struct {
 	Id             string        `json:"id,omitempty"`
-	Code           int           `json:"code,omitempty"`
+	Code           int           `json:"code"`
 	Name           string        `json:"name,omitempty"`
 	Slug           string        `json:"slug,omitempty"`
 	Message        string        `json:"message,omitempty"`
 	Duration       time.Duration `json:"duration,omitempty"`
 	Engine         string        `json:"engine,omitempty"`
-	EntryPage      string        `json:"entry_page,omitempty"`
-	ItemsOnPage    int           `json:"items_on_page,omitempty"`
-	Infinite       bool          `json:"infinite,omitempty"`
-	InfiniteDelay  bool          `json:"infinite_delay,omitempty"`
-	Paginate       bool          `json:"paginate,omitempty"`
+	FirstPage      string        `json:"first_page,omitempty"`
+	ItemsOnPage    int           `json:"items_on_page"`
+	Infinite       bool          `json:"infinite"`
+	InfiniteDelay  bool          `json:"infinite_delay"`
+	Paginate       bool          `json:"paginate"`
 	PaginateButton string        `json:"paginate_button,omitempty"`
-	PaginateLimit  int           `json:"paginate_limit,omitempty"`
-	Record         bool          `json:"record,omitempty"`
+	PaginateLimit  int           `json:"paginate_limit"`
+	Record         bool          `json:"record"`
 	Recording      string        `json:"recording,omitempty"`
 	Result         []ResultPage  `json:"result,omitempty"`
 	Usage          ResultUsage   `json:"usage,omitempty"`
 }
 
 type ResultPage struct {
-	Title    string          `json:"title,omitempty"`
-	Url      string          `json:"url,omitempty"`
-	Page     int             `json:"page,omitempty"`
+	Page     int             `json:"page"`
 	Duration time.Duration   `json:"duration,omitempty"`
-	Contents []ResultContent `json:"content,omitempty"`
+	Content  []ResultContent `json:"content,omitempty"`
 	Usage    ResultUsage     `json:"usage,omitempty"`
 }
 
 type ResultContent struct {
+	Title   string `json:"title,omitempty"`
+	Url     string `json:"url,omitempty"`
+	Page    int    `json:"page"`
 	Type    string `json:"type,omitempty"`
-	Length  int    `json:"length,omitempty"`
+	Length  int    `json:"length"`
 	Name    string `json:"name,omitempty"`
 	Content string `json:"content,omitempty"`
 }
@@ -47,7 +48,7 @@ type ResultUsage struct {
 type Config struct {
 	Name           string `yaml:"name"`
 	Engine         string `yaml:"engine"`
-	EntryPage      string `yaml:"entry_page"`
+	FirstPage      string `yaml:"first_page"`
 	ItemsOnPage    int    `yaml:"items_on_page"`
 	Infinite       bool   `yaml:"infinite"`
 	InfiniteDelay  bool   `yaml:"infinite_delay"`
@@ -61,14 +62,15 @@ type Config struct {
 }
 
 type Flow struct {
-	Element     Element `yaml:"element"`
-	Take        Take    `yaml:"take"`
-	Navigate    string  `yaml:"navigate"`
-	BackToEntry bool    `yaml:"back_to_entry"`
-	WaitFor     string  `yaml:"wait_for"`
-	Delay       int     `yaml:"delay"`
-	Capture     Capture `yaml:"capture"`
-	Table       Table   `yaml:"table"`
+	Element        Element `yaml:"element"`
+	Take           Take    `yaml:"take"`
+	Navigate       bool    `yaml:"navigate"`
+	BackToPrevious bool    `yaml:"back_to_previous"`
+	WaitFor        string  `yaml:"wait_for"`
+	Delay          int     `yaml:"delay"`
+	Capture        Capture `yaml:"capture"`
+	Table          Table   `yaml:"table"`
+	Wrapper        string  `yaml:"wrapper"`
 }
 
 type Element struct {
@@ -82,11 +84,11 @@ type Element struct {
 }
 
 type Take struct {
+	Name           string       `yaml:"name"`
 	Selector       string       `yaml:"selector"`
 	Contains       TakeContains `yaml:"contains"`
 	NextToSelector string       `yaml:"next_to_selector"`
 	NextToContains TakeContains `yaml:"next_to_contains"`
-	Name           string       `yaml:"name"`
 	Parse          string       `yaml:"parse"`
 	UseForNavigate bool         `yaml:"use_for_navigate"`
 }

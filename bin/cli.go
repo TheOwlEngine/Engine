@@ -17,7 +17,6 @@ import (
 	"github.com/DrSmithFr/go-console/pkg/style"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
-	"github.com/gosimple/slug"
 	"github.com/urfave/cli"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
@@ -97,13 +96,13 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 
 		log.Printf("%s Flow %s started", blue("[Owl]"), green(config.Name))
 		loading := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
-		loading.Suffix = "  scraping website " + config.EntryPage
+		loading.Suffix = "  scraping website " + config.FirstPage
 		loading.Start()
 
 		body := types.Config{
 			Name:           config.Name,
 			Engine:         config.Engine,
-			EntryPage:      config.EntryPage,
+			FirstPage:      config.FirstPage,
 			ItemsOnPage:    config.ItemsOnPage,
 			Infinite:       config.Infinite,
 			InfiniteDelay:  config.InfiniteDelay,
@@ -130,8 +129,7 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 
 		json.Unmarshal([]byte(resultBody), &result)
 
-		slugName := slug.Make(result.Name)
-		jsonPath := workingDirectory + "/resources/json/" + slugName + "-" + result.Id + ".json"
+		jsonPath := workingDirectory + "/resources/json/" + result.Slug + ".json"
 
 		log.Printf("%s Result saved : %s", blue("[Owl]"), green(jsonPath))
 

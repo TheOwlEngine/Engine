@@ -16,6 +16,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -53,6 +54,10 @@ var videoDirectory string
 var logsDirectory string
 
 var defaultTimeout time.Duration
+
+var temporaryDomainName string
+var temporaryNavigateUrl string
+var temporaryWrapperElement string
 
 func main() {
 	godotenv.Load(".env")
@@ -333,7 +338,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 		go func(rootChannel chan interface{}) {
 			log.Printf("%s Flow ID : %s", yellow("[ Engine ]"), pageId)
 			log.Printf("%s Flow name : %s", yellow("[ Engine ]"), request.Name)
-			log.Printf("%s Flow target : %s\n\n", yellow("[ Engine ]"), request.EntryPage)
+			log.Printf("%s Flow target : %s\n\n", yellow("[ Engine ]"), request.FirstPage)
 			log.Printf("%s Starting flow", yellow("[ Engine ]"))
 
 			if len(request.Flow) > 0 {
@@ -396,6 +401,16 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
+				paginateLimit = request.ItemsOnPage * paginateLimit
+
+				parsedUrl, errorParseUrl := url.Parse(request.FirstPage)
+
+				if errorParseUrl != nil {
+					log.Printf(red("[ Engine ] %v"), errorParseUrl)
+				}
+
+				temporaryDomainName = parsedUrl.Scheme + "://" + parsedUrl.Hostname()
+
 				isFinish, scraperResult := HandleRepeatLoop(request, request.Flow, page, pageId, 0, paginateLimit, temporaryScraperResult, diskUsage)
 
 				if isFinish {
@@ -435,13 +450,13 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					Slug:           sluggableName,
 					Message:        "-",
 					Duration:       time.Since(start) / 1000000, // milisecond,
-					Engine:         request.Engine,
-					EntryPage:      request.EntryPage,
+					Engine:         string(request.Engine),
+					FirstPage:      string(request.FirstPage),
 					ItemsOnPage:    request.ItemsOnPage,
 					Infinite:       request.Infinite,
 					InfiniteDelay:  request.InfiniteDelay,
 					Paginate:       request.Paginate,
-					PaginateButton: request.PaginateButton,
+					PaginateButton: string(request.PaginateButton),
 					PaginateLimit:  paginateLimit,
 					Record:         request.Record,
 					Usage: types.ResultUsage{
@@ -485,28 +500,32 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, pageId string, paginateIndex int, paginateLimit int, scraperResult []types.ResultPage, diskUsage map[string]float64) (bool, []types.ResultPage) {
+	pageStart := time.Now()
+	temporaryContents := make([]types.ResultContent, 0, len(request.Flow))
+
+	if paginateIndex == 0 {
+		page.Navigate(request.FirstPage)
+		page.WaitLoad()
+		time.Sleep(1 * time.Second)
+	}
+
+	if paginateIndex == request.ItemsOnPage && paginateIndex < paginateLimit {
+		page.MustElement(request.PaginateButton).MustClick()
+		page.MustWaitLoad()
+		time.Sleep(defaultTimeout)
+	}
+
 	if paginateIndex < paginateLimit {
 
-		if paginateIndex == 0 {
-			page.Navigate(request.EntryPage)
-		}
-
-		pageStart := time.Now()
-		temporaryContents := make([]types.ResultContent, 0, len(request.Flow))
-		pageResult := types.ResultPage{
-			Title: page.MustInfo().Title,
-			Url:   page.MustInfo().URL,
-			Page:  paginateIndex,
-		}
-
-		isFinish, pageContents := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, paginateIndex, temporaryContents, diskUsage)
+		isFinish, pageContent := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, paginateIndex, temporaryContents, diskUsage)
 
 		if isFinish {
-			pageResult.Duration = time.Since(pageStart) / 1000000
-			pageResult.Contents = pageContents
-			pageResult.Usage = types.ResultUsage{}
-
-			scraperResult = append(scraperResult, pageResult)
+			scraperResult = append(scraperResult, types.ResultPage{
+				Page:     paginateIndex,
+				Duration: time.Since(pageStart) / 1000000,
+				Content:  pageContent,
+				Usage:    types.ResultUsage{},
+			})
 
 			return HandleRepeatLoop(request, request.Flow, page, pageId, paginateIndex+1, paginateLimit, scraperResult, diskUsage)
 		} else {
@@ -521,74 +540,108 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 	return false, scraperResult
 }
 
-func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, paginateIndex int, pageContents []types.ResultContent, diskUsage map[string]float64) (bool, []types.ResultContent) {
+func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, paginateIndex int, pageContent []types.ResultContent, diskUsage map[string]float64) (bool, []types.ResultContent) {
 	red := color.New(color.FgRed).SprintFunc()
-	// currentTime := strconv.Itoa(int(time.Now().UnixMilli()))
+	yellow := color.New(color.FgYellow).SprintFunc()
 
 	if current < total {
 		flowData := flow[current]
 
 		var fieldName string = ""
-		var hasElement bool = false
 		var detectedElement *rod.Element
+		var selectorText string
+		var resultContent types.ResultContent
+
+		resultContent.Title = page.MustInfo().Title
+		resultContent.Url = page.MustInfo().URL
+		resultContent.Page = paginateIndex
+
+		if flowData.Wrapper != "" {
+			temporaryWrapperElement = flowData.Wrapper
+		}
+
+		if flowData.Element.Selector != "" {
+			selectorText = flowData.Element.Selector
+		}
+
+		if flowData.Take.Selector != "" {
+			selectorText = flowData.Take.Selector
+			fieldName = flowData.Take.Name
+		}
+
+		if flowData.Take.Contains.Selector != "" {
+			selectorText = flowData.Take.Contains.Selector
+			fieldName = flowData.Take.Name
+		}
+
+		if flowData.Take.NextToContains.Selector != "" {
+			selectorText = flowData.Take.NextToContains.Selector
+			fieldName = flowData.Take.Name
+		}
+
+		if flowData.Table.Selector != "" {
+			selectorText = flowData.Table.Selector
+			fieldName = flowData.Table.Name
+		}
+
+		if temporaryWrapperElement != "" {
+			selectorText = temporaryWrapperElement + " " + selectorText
+		}
+
+		if strings.Contains(selectorText, "$index") {
+			selectorText = strings.ReplaceAll(selectorText, "$index", strconv.Itoa(paginateIndex))
+		}
+
+		if strings.Contains(selectorText, "$number") {
+			selectorText = strings.ReplaceAll(selectorText, "$number", strconv.Itoa(paginateIndex+1))
+		}
 
 		fieldError := rod.Try(func() {
-			if flowData.Element.Selector != "" {
-				detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Element.Selector)
-				hasElement = true
+			if flowData.Element.Selector != "" || flowData.Table.Selector != "" || flowData.Take.Selector != "" {
+				detectedElement = page.Timeout(defaultTimeout).MustElement(selectorText)
+			} else if flowData.Take.Contains.Selector != "" {
+				detectedElement = page.Timeout(defaultTimeout).MustElementR(selectorText, flowData.Take.Contains.Identifier)
+			} else if flowData.Take.NextToSelector != "" {
+				detectedElement = page.Timeout(defaultTimeout).MustElement(selectorText).MustNext()
+			} else if flowData.Take.NextToContains.Selector != "" {
+				detectedElement = page.Timeout(defaultTimeout).MustElementR(selectorText, flowData.Take.NextToContains.Identifier).MustNext()
 			}
 		})
 
 		if errors.Is(fieldError, context.DeadlineExceeded) {
-			log.Println(red("[ Engine ] Selector " + flowData.Element.Selector + " not found"))
+			log.Printf(red("[ Engine ] Selector %s not found"), selectorText)
 		} else if fieldError != nil {
 			log.Printf(red("[ Engine ] %v"), fieldError)
 		}
+
+		// Process without Element
 
 		if flowData.Delay != 0 {
 
 			var sleepTime int = int(flowData.Delay)
 			time.Sleep(time.Second * time.Duration(sleepTime))
 
-		} else if flowData.Navigate != "" {
+		} else if flowData.Navigate {
 
-			err := rod.Try(func() {
-				page.Timeout(defaultTimeout).MustElementR("a", flowData.Navigate).MustClick()
-			})
+			if temporaryNavigateUrl != "" {
+				temporaryWrapperElement = ""
 
-			if errors.Is(err, context.DeadlineExceeded) {
-				log.Println(red("[ Engine ] Anchor " + flowData.Navigate + " not found"))
+				log.Printf(yellow("[ Engine ] Page Index %d"), paginateIndex)
+				log.Printf(yellow("[ Engine ] Navigate Url %s"), temporaryNavigateUrl)
+
+				page.Navigate(temporaryNavigateUrl)
+				page.WaitLoad()
+
+				time.Sleep(1 * time.Second)
 			}
 
-		} else if flowData.Element.Write != "" {
+		} else if flowData.BackToPrevious {
 
-			if hasElement {
-				if strings.Contains(flowData.Element.Write, "$") {
-					detectedElement.MustInput(os.Getenv(strings.ReplaceAll(flowData.Element.Write, "$", "")))
-				} else {
-					detectedElement.MustInput(flowData.Element.Write)
-				}
-			}
+			temporaryWrapperElement = ""
 
-		} else if flowData.Element.Action == "Enter" {
-
-			if hasElement {
-				detectedElement.MustPress(input.Enter)
-			}
-
-		} else if flowData.Element.Action == "Click" {
-
-			if hasElement {
-				detectedElement.MustClick()
-
-				err := rod.Try(func() {
-					page.Timeout(defaultTimeout).MustElement("body").MustWaitLoad()
-				})
-
-				if errors.Is(err, context.DeadlineExceeded) {
-					log.Println(red("[ Engine ] Can't wait for body loaded"))
-				}
-			}
+			page.MustNavigateBack()
+			page.WaitLoad()
+			time.Sleep(1 * time.Second)
 
 		} else if flowData.Capture.Path != "" {
 
@@ -628,64 +681,58 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				diskUsage["screenshot"] += float64(fileSize.Size())
 			}
 
-			pageContents = append(pageContents, types.ResultContent{
-				Type:    "screenshot",
-				Length:  int(fileSize.Size()),
-				Name:    flowData.Capture.Path,
-				Content: pathReplaced,
-			})
-		} else if flowData.Take.Name != "" {
+			resultContent.Type = "screenshot"
+			resultContent.Length = int(fileSize.Size())
+			resultContent.Name = flowData.Capture.Path
+			resultContent.Content = pathReplaced
+		}
 
-			fieldError := rod.Try(func() {
-				if flowData.Take.Selector != "" {
-					detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Take.Selector)
-					hasElement = true
+		// Process with Element
+
+		if detectedElement != nil {
+
+			if flowData.Element.Write != "" {
+
+				if strings.Contains(flowData.Element.Write, "$") {
+					detectedElement.MustInput(os.Getenv(strings.ReplaceAll(flowData.Element.Write, "$", "")))
+				} else {
+					detectedElement.MustInput(flowData.Element.Write)
 				}
 
-				if flowData.Take.Contains.Selector != "" {
-					detectedElement = page.Timeout(defaultTimeout).MustElementR(flowData.Take.Contains.Selector, flowData.Take.Contains.Identifier)
-					hasElement = true
+			} else if flowData.Element.Action == "Enter" {
+
+				detectedElement.MustPress(input.Enter)
+
+			} else if flowData.Element.Action == "Click" {
+
+				detectedElement.MustClick()
+
+				err := rod.Try(func() {
+					page.Timeout(defaultTimeout).MustElement("body").MustWaitLoad()
+				})
+
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Println(red("[ Engine ] Can't wait for body loaded"))
 				}
 
-				if flowData.Take.NextToSelector != "" {
-					detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Take.NextToSelector).MustNext()
-					hasElement = true
-				}
+			} else if flowData.Take.Parse != "" {
 
-				if flowData.Take.NextToContains.Selector != "" {
-					detectedElement = page.Timeout(defaultTimeout).MustElementR(flowData.Take.NextToContains.Selector, flowData.Take.NextToContains.Identifier).MustNext()
-					hasElement = true
-				}
-
-				// if flowData.Take.Table.Selector != "" {
-				// 	detectedElement = page.Timeout(defaultTimeout).MustElement(flowData.Take.Table.Selector)
-				// 	hasElement = true
-				// }
-			})
-
-			if errors.Is(fieldError, context.DeadlineExceeded) {
-				log.Println(red("[ Engine ] element " + fieldName + " not found"))
-			} else if fieldError != nil {
-				log.Printf(red("[ Engine ] %v"), fieldError)
-			}
-
-			if hasElement {
 				if flowData.Take.Parse == "html" {
-					pageContents = append(pageContents, types.ResultContent{
-						Type:    "html",
-						Length:  len(string(detectedElement.MustHTML())),
-						Name:    fieldName,
-						Content: string(detectedElement.MustHTML()),
-					})
+
+					resultContent.Type = "html"
+					resultContent.Length = len(string(detectedElement.MustHTML()))
+					resultContent.Name = fieldName
+					resultContent.Content = string(detectedElement.MustHTML())
+
 				}
 
 				if flowData.Take.Parse == "text" {
-					pageContents = append(pageContents, types.ResultContent{
-						Type:    "text",
-						Length:  len(string(detectedElement.MustText())),
-						Name:    fieldName,
-						Content: string(detectedElement.MustText()),
-					})
+
+					resultContent.Type = "text"
+					resultContent.Length = len(string(detectedElement.MustText()))
+					resultContent.Name = fieldName
+					resultContent.Content = string(detectedElement.MustText())
+
 				}
 
 				if flowData.Take.Parse == "image" || flowData.Take.Parse == "anchor" {
@@ -705,58 +752,59 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 						if source != nil {
 							sourceText = *source
 						}
+
+						if flowData.Take.UseForNavigate {
+							if strings.Contains(sourceText, "https") {
+								temporaryNavigateUrl = sourceText
+							} else {
+								temporaryNavigateUrl = temporaryDomainName + sourceText
+							}
+						}
 					}
 
-					pageLocation := page.MustEval("() => window.location")
-					pageDomain := pageLocation.Get("origin").String()
-					fieldSource := strings.ReplaceAll(pageDomain+"/"+sourceText, "//", "/")
-
-					pageContents = append(pageContents, types.ResultContent{
-						Type:    flowData.Take.Parse,
-						Length:  len(fieldSource),
-						Name:    fieldName,
-						Content: string(fieldSource),
-					})
+					resultContent.Type = flowData.Take.Parse
+					resultContent.Length = len(sourceText)
+					resultContent.Name = fieldName
+					resultContent.Content = string(sourceText)
 				}
+
+			} else if len(flowData.Table.Fields) > 0 {
+				tableString := detectedElement.MustHTML()
+				tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
+				tableTokenizer := html.NewTokenizer(tableToken)
+				tableRowCount := detectedElement.MustEval("() => this.querySelectorAll('tr').length").Int()
+
+				//                  row    column value
+				tableContent := make([]map[string]string, tableRowCount)
+
+				var tableRowCounter int = 0
+				var tableColumnCounter int = 0
+
+				tableContent = extractTable(tableTokenizer, tableContent, flowData.Table.Fields, tableRowCounter, tableColumnCounter)
+
+				resultOfTable := tableContent[1:]
+
+				jsonTable, _ := json.Marshal(resultOfTable)
+
+				resultContent.Type = "table"
+				resultContent.Length = len(jsonTable)
+				resultContent.Name = fieldName
+				resultContent.Content = string(jsonTable)
 			}
-
-		} else if flowData.Table.Selector != "" {
-			tableElement := page.Timeout(defaultTimeout).MustElement(flowData.Table.Selector)
-			tableString := tableElement.MustHTML()
-			tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
-			tableTokenizer := html.NewTokenizer(tableToken)
-			tableRowCount := tableElement.MustEval("() => this.querySelectorAll('tr').length").Int()
-
-			//                  row    column value
-			tableContent := make([]map[string]string, tableRowCount)
-
-			var tableRowCounter int = 0
-			var tableColumnCounter int = 0
-
-			tableContent = extractTable(tableTokenizer, tableContent, flowData.Table.Fields, tableRowCounter, tableColumnCounter)
-
-			resultOfTable := tableContent[1:]
-
-			jsonTable, _ := json.Marshal(resultOfTable)
-
-			pageContents = append(pageContents, types.ResultContent{
-				Type:    "table",
-				Length:  len(jsonTable),
-				Name:    flowData.Table.Name,
-				Content: string(jsonTable),
-			})
-		} else {
-			// noop
 		}
 
-		return HandleFlowLoop(request, flow, current+1, total, page, pageId, paginateIndex, pageContents, diskUsage)
+		if resultContent.Content != "" {
+			pageContent = append(pageContent, resultContent)
+		}
+
+		return HandleFlowLoop(request, flow, current+1, total, page, pageId, paginateIndex, pageContent, diskUsage)
 	}
 
 	if current == total {
-		return true, pageContents
+		return true, pageContent
 	}
 
-	return false, pageContents
+	return false, pageContent
 }
 
 func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string, tableFields []types.TableField, tableRowCounter int, tableColumnCounter int) []map[string]string {
