@@ -331,7 +331,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Printf("--- Create flow #%s - %s\n\n", green(pageId), green(request.Name))
+		fmt.Printf("--- Process flow for #%s - %s\n\n", green(pageId), green(request.Name))
 
 		rootChannel := make(chan interface{})
 
@@ -524,7 +524,6 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 				Page:     paginateIndex,
 				Duration: time.Since(pageStart) / 1000000,
 				Content:  pageContent,
-				Usage:    types.ResultUsage{},
 			})
 
 			return HandleRepeatLoop(request, request.Flow, page, pageId, paginateIndex+1, paginateLimit, scraperResult, diskUsage)

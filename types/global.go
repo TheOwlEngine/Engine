@@ -27,7 +27,6 @@ type ResultPage struct {
 	Page     int             `json:"page"`
 	Duration time.Duration   `json:"duration,omitempty"`
 	Content  []ResultContent `json:"content,omitempty"`
-	Usage    ResultUsage     `json:"usage,omitempty"`
 }
 
 type ResultContent struct {
