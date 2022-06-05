@@ -105,7 +105,7 @@ func sendConfig(flows []string, current int, total int, errorGroup *errgroup.Gro
 			FirstPage:      config.FirstPage,
 			ItemsOnPage:    config.ItemsOnPage,
 			Infinite:       config.Infinite,
-			InfiniteDelay:  config.InfiniteDelay,
+			InfiniteScroll: config.InfiniteScroll,
 			Paginate:       config.Paginate,
 			PaginateButton: config.PaginateButton,
 			PaginateLimit:  config.PaginateLimit,

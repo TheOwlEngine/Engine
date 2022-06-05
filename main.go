@@ -38,7 +38,8 @@ import (
 	"golang.org/x/net/html"
 )
 
-// var engineSession string
+var owlProxyAPI string = "http://owlengine.com/api/proxy?url="
+
 var engineBrowser rod.Browser
 
 var enginePort string
@@ -58,6 +59,7 @@ var defaultTimeout time.Duration
 var temporaryDomainName string
 var temporaryNavigateUrl string
 var temporaryWrapperElement string
+var temporaryInfiniteScroll int
 
 func main() {
 	godotenv.Load(".env")
@@ -307,9 +309,11 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
+
 	if (*r).Method == "OPTIONS" {
 		return
 	}
+
 	unique := uuid.New().String()
 	pageId := unique[len(unique)-12:]
 	yellow := color.New(color.FgYellow).SprintFunc()
@@ -344,6 +348,8 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 			if len(request.Flow) > 0 {
 				start := time.Now()
 				page := engineBrowser.MustPage()
+
+				proxyAddress := page.MustNavigate("https://echo.owlengine.com/ip").MustWaitLoad().MustElement("body").MustText()
 
 				// Enable screencast frame when user use record parameter
 				frameCounter := 0
@@ -386,6 +392,10 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					paginateLimit = request.PaginateLimit
 				}
 
+				if request.Infinite && request.InfiniteScroll > 0 {
+					paginateLimit = request.InfiniteScroll
+				}
+
 				temporaryScraperResult := make([]types.ResultPage, 0, paginateLimit)
 				recordResult := ""
 
@@ -401,7 +411,9 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
-				paginateLimit = request.ItemsOnPage * paginateLimit
+				if request.ItemsOnPage > 0 {
+					paginateLimit = request.ItemsOnPage * paginateLimit
+				}
 
 				parsedUrl, errorParseUrl := url.Parse(request.FirstPage)
 
@@ -445,16 +457,17 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				resultJson := types.Result{
 					Id:             pageId,
+					Proxy:          proxyAddress,
 					Code:           200,
 					Name:           request.Name,
 					Slug:           sluggableName,
-					Message:        "-",
+					Message:        "The flow is running successfully",
 					Duration:       time.Since(start) / 1000000, // milisecond,
 					Engine:         string(request.Engine),
 					FirstPage:      string(request.FirstPage),
 					ItemsOnPage:    request.ItemsOnPage,
 					Infinite:       request.Infinite,
-					InfiniteDelay:  request.InfiniteDelay,
+					InfiniteScroll: request.InfiniteScroll,
 					Paginate:       request.Paginate,
 					PaginateButton: string(request.PaginateButton),
 					PaginateLimit:  paginateLimit,
@@ -470,7 +483,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 				}
 
 				if recordResult != "" {
-					resultJson.Recording = recordResult
+					resultJson.Recording = owlProxyAPI + recordResult
 				}
 
 				rootChannel <- resultJson
@@ -510,7 +523,14 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 	}
 
 	if paginateIndex == request.ItemsOnPage && paginateIndex < paginateLimit {
-		page.MustElement(request.PaginateButton).MustClick()
+		if request.PaginateButton != "" {
+			page.MustElement(request.PaginateButton).MustClick()
+		}
+
+		if request.Infinite && temporaryInfiniteScroll < request.InfiniteScroll {
+			page.Mouse.Scroll(0, float64(*page.MustGetWindow().Height), 1)
+		}
+
 		page.MustWaitLoad()
 		time.Sleep(defaultTimeout)
 	}
@@ -587,12 +607,12 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			selectorText = temporaryWrapperElement + " " + selectorText
 		}
 
-		if strings.Contains(selectorText, "$index") {
-			selectorText = strings.ReplaceAll(selectorText, "$index", strconv.Itoa(paginateIndex))
+		if strings.Contains(selectorText, "$page_index") {
+			selectorText = strings.ReplaceAll(selectorText, "$page_index", strconv.Itoa(paginateIndex))
 		}
 
-		if strings.Contains(selectorText, "$number") {
-			selectorText = strings.ReplaceAll(selectorText, "$number", strconv.Itoa(paginateIndex+1))
+		if strings.Contains(selectorText, "$page_number") {
+			selectorText = strings.ReplaceAll(selectorText, "$page_number", strconv.Itoa(paginateIndex+1))
 		}
 
 		fieldError := rod.Try(func() {
@@ -619,6 +639,10 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 			var sleepTime int = int(flowData.Delay)
 			time.Sleep(time.Second * time.Duration(sleepTime))
+
+		} else if flowData.Scroll > 0 {
+
+			page.Mouse.Scroll(0, float64(*page.MustGetWindow().Height), flowData.Scroll)
 
 		} else if flowData.Navigate {
 
@@ -683,7 +707,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			resultContent.Type = "screenshot"
 			resultContent.Length = int(fileSize.Size())
 			resultContent.Name = flowData.Capture.Path
-			resultContent.Content = pathReplaced
+			resultContent.Content = owlProxyAPI + pathReplaced
 		}
 
 		// Process with Element

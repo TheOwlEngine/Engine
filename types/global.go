@@ -7,13 +7,14 @@ type Result struct {
 	Code           int           `json:"code"`
 	Name           string        `json:"name,omitempty"`
 	Slug           string        `json:"slug,omitempty"`
+	Proxy          string        `json:"proxy,omitempty"`
 	Message        string        `json:"message,omitempty"`
 	Duration       time.Duration `json:"duration,omitempty"`
 	Engine         string        `json:"engine,omitempty"`
 	FirstPage      string        `json:"first_page,omitempty"`
 	ItemsOnPage    int           `json:"items_on_page"`
 	Infinite       bool          `json:"infinite"`
-	InfiniteDelay  bool          `json:"infinite_delay"`
+	InfiniteScroll int           `json:"infinite_scroll"`
 	Paginate       bool          `json:"paginate"`
 	PaginateButton string        `json:"paginate_button,omitempty"`
 	PaginateLimit  int           `json:"paginate_limit"`
@@ -50,7 +51,7 @@ type Config struct {
 	FirstPage      string `yaml:"first_page"`
 	ItemsOnPage    int    `yaml:"items_on_page"`
 	Infinite       bool   `yaml:"infinite"`
-	InfiniteDelay  bool   `yaml:"infinite_delay"`
+	InfiniteScroll int    `yaml:"infinite_scroll"`
 	Paginate       bool   `yaml:"paginate"`
 	PaginateButton string `yaml:"paginate_button"`
 	PaginateLimit  int    `yaml:"paginate_limit"`
@@ -67,6 +68,7 @@ type Flow struct {
 	BackToPrevious bool    `yaml:"back_to_previous"`
 	WaitFor        string  `yaml:"wait_for"`
 	Delay          int     `yaml:"delay"`
+	Scroll         int     `yaml:"scroll"`
 	Capture        Capture `yaml:"capture"`
 	Table          Table   `yaml:"table"`
 	Wrapper        string  `yaml:"wrapper"`
