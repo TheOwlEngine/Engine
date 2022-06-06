@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Take Property</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <div class="container mt-5 mb-5">
+      <div id="content" class="mw-body" role="main">
+        <a id="top"></a>
+        <div id="siteNotice"><div id="centralNotice"></div></div>
+        <div class="mw-indicators"></div>
+        <h1 id="firstHeading" class="firstHeading mw-first-heading">
+          Data scraping
+        </h1>
+        <div id="bodyContent" class="vector-body">
+          <div id="siteSub" class="noprint">
+            From Wikipedia, the free encyclopedia
+          </div>
+          <div id="contentSub"></div>
+          <div id="contentSub2"></div>
+          <div id="jump-to-nav"></div>
+          <div
+            id="mw-content-text"
+            class="mw-body-content mw-content-ltr"
+            lang="en"
+            dir="ltr"
+          >
+            <div class="mw-parser-output">
+              <div
+                class="shortdescription nomobile noexcerpt noprint searchaux"
+                style="display: none"
+              >
+                Data extraction technique
+              </div>
+              <p>
+                <b>Data scraping</b> is a technique where a
+                <a href="/wiki/Computer_program" title="Computer program"
+                  >computer program</a
+                >
+                extracts <a href="/wiki/Data" title="Data">data</a> from
+                <a
+                  href="/wiki/Human-readable_medium"
+                  title="Human-readable medium"
+                  >human-readable</a
+                >
+                output coming from another program.
+              </p>
+              <div
+                id="toc"
+                class="toc"
+                role="navigation"
+                aria-labelledby="mw-toc-heading"
+              >
+                <input
+                  type="checkbox"
+                  role="button"
+                  id="toctogglecheckbox"
+                  class="toctogglecheckbox"
+                  style="display: none"
+                />
+                <div class="toctitle" lang="en" dir="ltr">
+                  <h2 id="mw-toc-heading">Contents</h2>
+                  <span class="toctogglespan"
+                    ><label
+                      class="toctogglelabel"
+                      for="toctogglecheckbox"
+                    ></label
+                  ></span>
+                </div>
+                <ul>
+                  <li class="toclevel-1 tocsection-1">
+                    <a href="#Description"
+                      ><span class="tocnumber">1</span>
+                      <span class="toctext">Description</span></a
+                    >
+                  </li>
+                  <li class="toclevel-1 tocsection-2">
+                    <a href="#Technical_variants"
+                      ><span class="tocnumber">2</span>
+                      <span class="toctext">Technical variants</span></a
+                    >
+                    <ul>
+                      <li class="toclevel-2 tocsection-3">
+                        <a href="#Screen_scraping"
+                          ><span class="tocnumber">2.1</span>
+                          <span class="toctext">Screen scraping</span></a
+                        >
+                      </li>
+                      <li class="toclevel-2 tocsection-4">
+                        <a href="#Web_scraping"
+                          ><span class="tocnumber">2.2</span>
+                          <span class="toctext">Web scraping</span></a
+                        >
+                      </li>
+                      <li class="toclevel-2 tocsection-5">
+                        <a href="#Report_mining"
+                          ><span class="tocnumber">2.3</span>
+                          <span class="toctext"
+                            ><span><span>Report mining</span></span></span
+                          ></a
+                        >
+                      </li>
+                    </ul>
+                  </li>
+                  <li class="toclevel-1 tocsection-6">
+                    <a href="#See_also"
+                      ><span class="tocnumber">3</span>
+                      <span class="toctext">See also</span></a
+                    >
+                  </li>
+                  <li class="toclevel-1 tocsection-7">
+                    <a href="#References"
+                      ><span class="tocnumber">4</span>
+                      <span class="toctext">References</span></a
+                    >
+                  </li>
+                  <li class="toclevel-1 tocsection-8">
+                    <a href="#Further_reading"
+                      ><span class="tocnumber">5</span>
+                      <span class="toctext">Further reading</span></a
+                    >
+                  </li>
+                </ul>
+              </div>
+              <h2>
+                <span class="mw-headline" id="Description">Description</span
+                ><span class="mw-editsection"
+                  ><span class="mw-editsection-bracket">[</span
+                  ><a
+                    href="/w/index.php?title=Data_scraping&amp;action=edit&amp;section=1"
+                    title="Edit section: Description"
+                    >edit</a
+                  ><span class="mw-editsection-bracket">]</span></span
+                >
+              </h2>
+              <p>
+                Normally,
+                <a
+                  href="/wiki/Data_transmission"
+                  class="mw-redirect"
+                  title="Data transmission"
+                  >data transfer</a
+                >
+                between programs is accomplished using
+                <a
+                  href="/wiki/Data_structures"
+                  class="mw-redirect"
+                  title="Data structures"
+                  >data structures</a
+                >
+                suited for
+                <a href="/wiki/Automation" title="Automation">automated</a>
+                processing by
+                <a href="/wiki/Computers" class="mw-redirect" title="Computers"
+                  >computers</a
+                >, not people. Such interchange
+                <a href="/wiki/File_format" title="File format">formats</a> and
+                <a
+                  href="/wiki/Protocol_(computing)"
+                  class="mw-redirect"
+                  title="Protocol (computing)"
+                  >protocols</a
+                >
+                are typically rigidly structured, well-documented, easily
+                <a href="/wiki/Parsing" title="Parsing">parsed</a>, and minimize
+                ambiguity. Very often, these transmissions are not
+                human-readable at all.
+              </p>
+              <p>
+                Thus, the key element that distinguishes data scraping from
+                regular <a href="/wiki/Parsing" title="Parsing">parsing</a> is
+                that the output being scraped is intended for display to an
+                <a
+                  href="/wiki/End-user_(computer_science)"
+                  class="mw-redirect"
+                  title="End-user (computer science)"
+                  >end-user</a
+                >, rather than as an input to another program. It is therefore
+                usually neither documented nor structured for convenient
+                parsing. Data scraping often involves ignoring
+                <a href="/wiki/Binary_data" title="Binary data">binary data</a>
+                (usually images or multimedia data),
+                <a href="/wiki/Display_device" title="Display device"
+                  >display</a
+                >
+                formatting, redundant labels, superfluous commentary, and other
+                information which is either irrelevant or hinders automated
+                processing.
+              </p>
+              <p>
+                Data scraping is most often done either to interface to a
+                <a href="/wiki/Legacy_system" title="Legacy system"
+                  >legacy system</a
+                >, which has no other mechanism which is compatible with current
+                <a href="/wiki/Computer_hardware" title="Computer hardware"
+                  >hardware</a
+                >, or to interface to a third-party system which does not
+                provide a more convenient
+                <a
+                  href="/wiki/Application_programming_interface"
+                  class="mw-redirect"
+                  title="Application programming interface"
+                  >API</a
+                >. In the second case, the operator of the third-party system
+                will often see
+                <a
+                  href="/wiki/Screen_scraping"
+                  class="mw-redirect"
+                  title="Screen scraping"
+                  >screen scraping</a
+                >
+                as unwanted, due to reasons such as increased system
+                <a href="/wiki/Load_(computing)" title="Load (computing)"
+                  >load</a
+                >, the loss of
+                <a
+                  href="/wiki/Advertisement"
+                  class="mw-redirect"
+                  title="Advertisement"
+                  >advertisement</a
+                >
+                <a href="/wiki/Revenue" title="Revenue">revenue</a>, or the loss
+                of control of the information content.
+              </p>
+              <p>
+                Data scraping is generally considered an
+                <i><a href="/wiki/Ad_hoc" title="Ad hoc">ad hoc</a></i
+                >, inelegant technique, often used only as a "last resort" when
+                no other mechanism for data interchange is available. Aside from
+                the higher
+                <a
+                  href="/wiki/Computer_programming"
+                  title="Computer programming"
+                  >programming</a
+                >
+                and processing overhead, output displays intended for human
+                consumption often change structure frequently. Humans can cope
+                with this easily, but a computer program will fail. Depending on
+                the quality and the extent of
+                <a
+                  href="/wiki/Error_handling"
+                  class="mw-redirect"
+                  title="Error handling"
+                  >error handling</a
+                >
+                logic present in the computer, this failure can result in error
+                messages, corrupted output or even
+                <a
+                  href="/wiki/Program_crash"
+                  class="mw-redirect"
+                  title="Program crash"
+                  >program crashes</a
+                >.
+              </p>
+              <h2>
+                <span class="mw-headline" id="Technical_variants"
+                  >Technical variants</span
+                ><span class="mw-editsection"
+                  ><span class="mw-editsection-bracket">[</span
+                  ><a
+                    href="/w/index.php?title=Data_scraping&amp;action=edit&amp;section=2"
+                    title="Edit section: Technical variants"
+                    >edit</a
+                  ><span class="mw-editsection-bracket">]</span></span
+                >
+              </h2>
+              <h3>
+                <span class="mw-headline" id="Screen_scraping"
+                  >Screen scraping</span
+                ><span class="mw-editsection"
+                  ><span class="mw-editsection-bracket">[</span
+                  ><a
+                    href="/w/index.php?title=Data_scraping&amp;action=edit&amp;section=3"
+                    title="Edit section: Screen scraping"
+                    >edit</a
+                  ><span class="mw-editsection-bracket">]</span></span
+                >
+              </h3>
+              <div class="thumb tright">
+                <div class="thumbinner" style="width: 382px">
+                  <a href="/wiki/File:Screen-Scraping-OCRget.jpg" class="image"
+                    ><img
+                      alt=""
+                      src="//upload.wikimedia.org/wikipedia/commons/thumb/d/db/Screen-Scraping-OCRget.jpg/380px-Screen-Scraping-OCRget.jpg"
+                      decoding="async"
+                      width="380"
+                      height="130"
+                      class="thumbimage"
+                      srcset="
+                        //upload.wikimedia.org/wikipedia/commons/d/db/Screen-Scraping-OCRget.jpg 1.5x
+                      "
+                      data-file-width="570"
+                      data-file-height="195"
+                  /></a>
+                  <div class="thumbcaption">
+                    <div class="magnify">
+                      <a
+                        href="/wiki/File:Screen-Scraping-OCRget.jpg"
+                        class="internal"
+                        title="Enlarge"
+                      ></a>
+                    </div>
+                    A screen fragment and a screen-scraping interface (blue box
+                    with red arrow) to customize data capture process.
+                  </div>
+                </div>
+              </div>
+              <p>
+                Although the use of physical "<a
+                  href="/wiki/Dumb_terminal"
+                  class="mw-redirect"
+                  title="Dumb terminal"
+                  >dumb terminal</a
+                >" IBM 3270s is slowly diminishing, as more and more mainframe
+                applications acquire
+                <a href="/wiki/World_Wide_Web" title="World Wide Web">Web</a>
+                interfaces, some Web applications merely continue to use the
+                technique of <b>screen scraping</b> to capture old screens and
+                transfer the data to modern front-ends.<sup
+                  id="cite_ref-1"
+                  class="reference"
+                  ><a href="#cite_note-1">[1]</a></sup
+                >
+              </p>
+              <p>
+                Screen scraping is normally associated with the programmatic
+                collection of visual data from a source, instead of parsing data
+                as in web scraping. Originally, <i>screen scraping</i> referred
+                to the practice of reading text data from a computer display
+                <a href="/wiki/Computer_terminal" title="Computer terminal"
+                  >terminal</a
+                >'s
+                <a href="/wiki/Display_device" title="Display device">screen</a
+                >. This was generally done by reading the terminal's
+                <a
+                  href="/wiki/Memory_(computers)"
+                  class="mw-redirect"
+                  title="Memory (computers)"
+                  >memory</a
+                >
+                through its auxiliary
+                <a
+                  href="/wiki/Computer_port_(hardware)"
+                  title="Computer port (hardware)"
+                  >port</a
+                >, or by connecting the terminal output port of one computer
+                system to an input port on another. The term screen scraping is
+                also commonly used to refer to the bidirectional exchange of
+                data. This could be the simple cases where the controlling
+                program navigates through the user interface, or more complex
+                scenarios where the controlling program is entering data into an
+                interface meant to be used by a human.
+              </p>
+              <p>
+                As a concrete example of a classic screen scraper, consider a
+                hypothetical legacy system dating from the 1960s—the dawn of
+                computerized
+                <a href="/wiki/Data_processing" title="Data processing"
+                  >data processing</a
+                >. Computer to
+                <a href="/wiki/User_interface" title="User interface"
+                  >user interfaces</a
+                >
+                from that era were often simply text-based
+                <a
+                  href="/wiki/Dumb_terminal"
+                  class="mw-redirect"
+                  title="Dumb terminal"
+                  >dumb terminals</a
+                >
+                which were not much more than virtual
+                <a href="/wiki/Teleprinter" title="Teleprinter">teleprinters</a>
+                (such systems are still in use today<sup
+                  class="plainlinks noexcerpt noprint asof-tag update"
+                  style="display: none"
+                  ><a
+                    class="external text"
+                    href="https://en.wikipedia.org/w/index.php?title=Data_scraping&amp;action=edit"
+                    >[update]</a
+                  ></sup
+                >, for various reasons). The desire to interface such a system
+                to more modern systems is common. A
+                <a
+                  href="/wiki/Robustness_(computer_science)"
+                  title="Robustness (computer science)"
+                  >robust</a
+                >
+                solution will often require things no longer available, such as
+                <a href="/wiki/Source_code" title="Source code">source code</a>,
+                system
+                <a href="/wiki/Documentation" title="Documentation"
+                  >documentation</a
+                >,
+                <a
+                  href="/wiki/Application_programming_interface"
+                  class="mw-redirect"
+                  title="Application programming interface"
+                  >APIs</a
+                >, or
+                <a
+                  href="/wiki/Programmers"
+                  class="mw-redirect"
+                  title="Programmers"
+                  >programmers</a
+                >
+                with experience in a 50-year-old computer system. In such cases,
+                the only feasible solution may be to write a screen scraper that
+                "pretends" to be a user at a terminal. The screen scraper might
+                connect to the legacy system via
+                <a href="/wiki/Telnet" title="Telnet">Telnet</a>,
+                <a href="/wiki/Emulator" title="Emulator">emulate</a> the
+                keystrokes needed to navigate the old user interface, process
+                the resulting display output, extract the desired data, and pass
+                it on to the modern system. A sophisticated and resilient
+                implementation of this kind, built on a platform providing the
+                governance and control required by a major enterprise—e.g.
+                change control, security, user management, data protection,
+                operational audit, load balancing, and queue management,
+                etc.—could be said to be an example of
+                <a
+                  href="/wiki/Robotic_process_automation"
+                  title="Robotic process automation"
+                  >robotic process automation</a
+                >
+                software, called RPA or RPAAI for self-guided RPA 2.0 based on
+                <a
+                  href="/wiki/Artificial_intelligence"
+                  title="Artificial intelligence"
+                  >artificial intelligence</a
+                >.
+              </p>
+              <p>
+                In the 1980s, financial data providers such as
+                <a href="/wiki/Reuters" title="Reuters">Reuters</a>,
+                <a
+                  href="/wiki/Dow_Jones_%26_Company"
+                  title="Dow Jones &amp; Company"
+                  >Telerate</a
+                >, and
+                <a href="/wiki/Quotron" title="Quotron">Quotron</a> displayed
+                data in 24×80 format intended for a human reader. Users of this
+                data, particularly
+                <a href="/wiki/Investment_banking" title="Investment banking"
+                  >investment banks</a
+                >, wrote applications to capture and convert this character data
+                as numeric data for inclusion into calculations for trading
+                decisions without
+                <a href="/wiki/Data_entry_clerk" title="Data entry clerk"
+                  >re-keying</a
+                >
+                the data. The common term for this practice, especially in the
+                <a href="/wiki/United_Kingdom" title="United Kingdom"
+                  >United Kingdom</a
+                >, was <i>page shredding</i>, since the results could be
+                imagined to have passed through a
+                <a href="/wiki/Paper_shredder" title="Paper shredder"
+                  >paper shredder</a
+                >. Internally Reuters used the term 'logicized' for this
+                conversion process, running a sophisticated computer system on
+                <a href="/wiki/VAX/VMS" class="mw-redirect" title="VAX/VMS"
+                  >VAX/VMS</a
+                >
+                called the Logicizer.<sup id="cite_ref-2" class="reference"
+                  ><a href="#cite_note-2">[2]</a></sup
+                >
+              </p>
+              <p>
+                More modern screen scraping techniques include capturing the
+                bitmap data from the screen and running it through an
+                <a
+                  href="/wiki/Optical_character_recognition"
+                  title="Optical character recognition"
+                  >OCR</a
+                >
+                engine, or for some specialised automated testing systems,
+                matching the screen's bitmap data against expected results.<sup
+                  id="cite_ref-3"
+                  class="reference"
+                  ><a href="#cite_note-3">[3]</a></sup
+                >
+                This can be combined in the case of
+                <a href="/wiki/GUI" class="mw-redirect" title="GUI">GUI</a>
+                applications, with querying the graphical controls by
+                programmatically obtaining references to their underlying
+                <a
+                  href="/wiki/Object-oriented_programming"
+                  title="Object-oriented programming"
+                  >programming objects</a
+                >. A sequence of screens is automatically captured and converted
+                into a database.
+              </p>
+              <p>
+                Another modern adaptation to these techniques is to use, instead
+                of a sequence of screens as input, a set of images or PDF files,
+                so there are some overlaps with generic "document scraping" and
+                <a href="#Report_mining">report mining</a> techniques.
+              </p>
+              <p>
+                There are many tools that can be used for screen scraping.<sup
+                  id="cite_ref-4"
+                  class="reference"
+                  ><a href="#cite_note-4">[4]</a></sup
+                >
+              </p>
+              <h3>
+                <span class="mw-headline" id="Web_scraping">Web scraping</span
+                ><span class="mw-editsection"
+                  ><span class="mw-editsection-bracket">[</span
+                  ><a
+                    href="/w/index.php?title=Data_scraping&amp;action=edit&amp;section=4"
+                    title="Edit section: Web scraping"
+                    >edit</a
+                  ><span class="mw-editsection-bracket">]</span></span
+                >
+              </h3>
+              <style data-mw-deduplicate="TemplateStyles:r1033289096">
+                .mw-parser-output .hatnote {
+                  font-style: italic;
+                }
+                .mw-parser-output div.hatnote {
+                  padding-left: 1.6em;
+                  margin-bottom: 0.5em;
+                }
+                .mw-parser-output .hatnote i {
+                  font-style: normal;
+                }
+                .mw-parser-output .hatnote + link + .hatnote {
+                  margin-top: -0.5em;
+                }
+              </style>
+              <div role="note" class="hatnote navigation-not-searchable">
+                Main article:
+                <a href="/wiki/Web_scraping" title="Web scraping"
+                  >Web scraping</a
+                >
+              </div>
+              <p>
+                <a href="/wiki/Web_page" title="Web page">Web pages</a> are
+                built using text-based mark-up languages (<a
+                  href="/wiki/HTML"
+                  title="HTML"
+                  >HTML</a
+                >
+                and <a href="/wiki/XHTML" title="XHTML">XHTML</a>), and
+                frequently contain a wealth of useful data in text form.
+                However, most web pages are designed for human
+                <a
+                  href="/wiki/End-user_(computer_science)"
+                  class="mw-redirect"
+                  title="End-user (computer science)"
+                  >end-users</a
+                >
+                and not for ease of automated use. Because of this, tool kits
+                that scrape web content were created. A
+                <a href="/wiki/Web_scraping" title="Web scraping"
+                  >web scraper</a
+                >
+                is an <a href="/wiki/API" title="API">API</a> or tool to extract
+                data from a web site. Companies like
+                <a
+                  href="/wiki/Amazon_AWS"
+                  class="mw-redirect"
+                  title="Amazon AWS"
+                  >Amazon AWS</a
+                >
+                and <a href="/wiki/Google" title="Google">Google</a> provide
+                <b>web scraping</b> tools, services, and public data available
+                free of cost to end-users. Newer forms of web scraping involve
+                listening to data feeds from web servers. For example,
+                <a href="/wiki/JSON" title="JSON">JSON</a> is commonly used as a
+                transport storage mechanism between the client and the
+                webserver.
+              </p>
+              <p>
+                Recently, companies have developed web scraping systems that
+                rely on using techniques in DOM parsing,
+                <a href="/wiki/Computer_vision" title="Computer vision"
+                  >computer vision</a
+                >
+                and
+                <a
+                  href="/wiki/Natural_language_processing"
+                  title="Natural language processing"
+                  >natural language processing</a
+                >
+                to simulate the human processing that occurs when viewing a
+                webpage to automatically extract useful information.<sup
+                  id="cite_ref-5"
+                  class="reference"
+                  ><a href="#cite_note-5">[5]</a></sup
+                ><sup id="cite_ref-6" class="reference"
+                  ><a href="#cite_note-6">[6]</a></sup
+                >
+              </p>
+              <p>
+                Large websites usually use defensive algorithms to protect their
+                data from web scrapers and to limit the number of requests an IP
+                or IP network may send. This has caused an ongoing battle
+                between website developers and scraping developers.<sup
+                  id="cite_ref-7"
+                  class="reference"
+                  ><a href="#cite_note-7">[7]</a></sup
+                >
+              </p>
+              <h3>
+                <span class="mw-headline" id="Report_mining"
+                  ><style data-mw-deduplicate="TemplateStyles:r1023754711">
+                    .mw-parser-output .vanchor > :target ~ .vanchor-text {
+                      background-color: #b1d2ff;
+                    }</style
+                  ><span class="vanchor"
+                    ><span id="Report_mining"></span
+                    ><span class="vanchor-text">Report mining</span></span
+                  ></span
+                ><span class="mw-editsection"
+                  ><span class="mw-editsection-bracket">[</span
+                  ><a
+                    href="/w/index.php?title=Data_scraping&amp;action=edit&amp;section=5"
+                    title="Edit section: Report mining"
+                    >edit</a
+                  ><span class="mw-editsection-bracket">]</span></span
+                >
+              </h3>
+              <p>
+                <b>Report mining</b> is the extraction of data from
+                human-readable computer reports. Conventional
+                <a href="/wiki/Data_extraction" title="Data extraction"
+                  >data extraction</a
+                >
+                requires a connection to a working source system, suitable
+                <a href="/wiki/Database_connection" title="Database connection"
+                  >connectivity</a
+                >
+                standards or an
+                <a
+                  href="/wiki/Application_programming_interface"
+                  class="mw-redirect"
+                  title="Application programming interface"
+                  >API</a
+                >, and usually complex querying. By using the source system's
+                standard reporting options, and directing the output to a
+                <a href="/wiki/Spooling" title="Spooling">spool file</a> instead
+                of to a
+                <a href="/wiki/Printer_(computing)" title="Printer (computing)"
+                  >printer</a
+                >, static reports can be generated suitable for offline analysis
+                via report mining.<sup id="cite_ref-8" class="reference"
+                  ><a href="#cite_note-8">[8]</a></sup
+                >
+                This approach can avoid intensive
+                <a
+                  href="/wiki/Central_processing_unit"
+                  title="Central processing unit"
+                  >CPU</a
+                >
+                usage during business hours, can minimise
+                <a href="/wiki/End-user" class="mw-redirect" title="End-user"
+                  >end-user</a
+                >
+                licence costs for
+                <a
+                  href="/wiki/Enterprise_resource_planning"
+                  title="Enterprise resource planning"
+                  >ERP</a
+                >
+                customers, and can offer very rapid prototyping and development
+                of custom reports. Whereas data scraping and web scraping
+                involve interacting with dynamic output, report mining involves
+                extracting data from files in a human-readable format, such as
+                <a href="/wiki/HTML" title="HTML">HTML</a>, PDF, or text. These
+                can be easily generated from almost any system by intercepting
+                the data feed to a printer. This approach can provide a quick
+                and simple route to obtaining data without the need to program
+                an API to the source system.
+              </p>
+              <h2>
+                <span class="mw-headline" id="See_also">See also</span
+                ><span class="mw-editsection"
+                  ><span class="mw-editsection-bracket">[</span
+                  ><a
+                    href="/w/index.php?title=Data_scraping&amp;action=edit&amp;section=6"
+                    title="Edit section: See also"
+                    >edit</a
+                  ><span class="mw-editsection-bracket">]</span></span
+                >
+              </h2>
+              <ul>
+                <li>
+                  <a
+                    href="/wiki/Comparison_of_feed_aggregators"
+                    title="Comparison of feed aggregators"
+                    >Comparison of feed aggregators</a
+                  >
+                </li>
+                <li>
+                  <a href="/wiki/Data_cleansing" title="Data cleansing"
+                    >Data cleansing</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="/wiki/Data_munging"
+                    class="mw-redirect"
+                    title="Data munging"
+                    >Data munging</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="/wiki/Importer_(computing)"
+                    title="Importer (computing)"
+                    >Importer (computing)</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="/wiki/Information_extraction"
+                    title="Information extraction"
+                    >Information extraction</a
+                  >
+                </li>
+                <li>
+                  <a href="/wiki/Open_data" title="Open data">Open data</a>
+                </li>
+                <li>
+                  <a
+                    href="/wiki/Mashup_(web_application_hybrid)"
+                    title="Mashup (web application hybrid)"
+                    >Mashup (web application hybrid)</a
+                  >
+                </li>
+                <li><a href="/wiki/Metadata" title="Metadata">Metadata</a></li>
+                <li>
+                  <a href="/wiki/Web_scraping" title="Web scraping"
+                    >Web scraping</a
+                  >
+                </li>
+                <li>
+                  <a
+                    href="/wiki/Search_engine_scraping"
+                    title="Search engine scraping"
+                    >Search engine scraping</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
