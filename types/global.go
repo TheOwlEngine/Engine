@@ -75,13 +75,15 @@ type Flow struct {
 }
 
 type Element struct {
-	Selector string `yaml:"selector"`
-	Write    string `yaml:"write"`
-	Value    string `yaml:"value"`
-	Choose   string `yaml:"choose"`
-	Upload   string `yaml:"upload"`
-	Action   string `yaml:"action"`
-	Key      string `yaml:"key"`
+	Selector string   `yaml:"selector"`
+	Write    string   `yaml:"write"`
+	Value    string   `yaml:"value"`
+	Select   string   `yaml:"select"`
+	Multiple []string `yaml:"multiple"`
+	Check    string   `yaml:"check"`
+	Radio    string   `yaml:"radio"`
+	Upload   string   `yaml:"upload"`
+	Action   string   `yaml:"action"`
 }
 
 type Take struct {
@@ -100,9 +102,10 @@ type TakeContains struct {
 }
 
 type Capture struct {
-	Path  string      `yaml:"path"`
-	Delay int         `yaml:"delay"`
-	Clip  CaptureClip `yaml:"clip"`
+	Selector string      `yaml:"selector"`
+	Path     string      `yaml:"path"`
+	Delay    int         `yaml:"delay"`
+	Clip     CaptureClip `yaml:"clip"`
 }
 
 type CaptureClip struct {

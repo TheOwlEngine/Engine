@@ -722,21 +722,31 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 					detectedElement.MustInput(flowData.Element.Write)
 				}
 
-			} else if flowData.Element.Action == "Enter" {
+			} else if flowData.Element.Value != "" {
 
-				detectedElement.MustPress(input.Enter)
+				detectedElement.Eval("() => this.value = " + flowData.Element.Value)
 
-			} else if flowData.Element.Action == "Click" {
+			} else if flowData.Element.Select != "" {
+
+				detectedElement.MustSelect(flowData.Element.Select)
+
+			} else if len(flowData.Element.Multiple) > 0 {
+
+				for _, value := range flowData.Element.Multiple {
+					detectedElement.MustSelect(value)
+				}
+
+			} else if flowData.Element.Check != "" || flowData.Element.Radio != "" || flowData.Element.Action == "Click" {
 
 				detectedElement.MustClick()
 
-				err := rod.Try(func() {
-					page.Timeout(defaultTimeout).MustElement("body").MustWaitLoad()
-				})
+			} else if flowData.Element.Upload != "" {
 
-				if errors.Is(err, context.DeadlineExceeded) {
-					log.Println(red("[ Engine ] Can't wait for body loaded"))
-				}
+				detectedElement.MustSetFiles(flowData.Element.Upload)
+
+			} else if flowData.Element.Action == "Enter" {
+
+				detectedElement.MustPress(input.Enter)
 
 			} else if flowData.Take.Parse != "" {
 

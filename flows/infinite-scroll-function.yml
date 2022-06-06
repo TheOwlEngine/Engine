@@ -1,0 +1,28 @@
+# Set name property
+name: Select Element - Bootstrap
+
+# Set engine URL
+engine: http://127.0.0.1:3000
+
+# Set entry page URL
+first_page: http://127.0.0.1:8888
+
+# Flow process for every page
+flow:
+
+  # Write on input text
+  - element:
+      selector: '[aria-label="Default select example"]'
+      select: Two
+  
+  - delay: 1
+
+  # Write on textarea text
+  - element:
+      selector: '[aria-label="multiple select example"]'
+      multiple:
+        - Two
+        - Three
+  
+  - delay: 1
+
