@@ -740,9 +740,9 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 				detectedElement.MustClick()
 
-			} else if flowData.Element.Upload != "" {
+				// } else if flowData.Element.Upload != "" {
 
-				detectedElement.MustSetFiles(flowData.Element.Upload)
+				// 	detectedElement.MustSetFiles(flowData.Element.Upload)
 
 			} else if flowData.Element.Action == "Enter" {
 

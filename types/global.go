@@ -82,8 +82,8 @@ type Element struct {
 	Multiple []string `yaml:"multiple"`
 	Check    string   `yaml:"check"`
 	Radio    string   `yaml:"radio"`
-	Upload   string   `yaml:"upload"`
-	Action   string   `yaml:"action"`
+	// Upload   string   `yaml:"upload"`
+	Action string `yaml:"action"`
 }
 
 type Take struct {
