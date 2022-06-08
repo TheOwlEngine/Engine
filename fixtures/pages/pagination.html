@@ -31,7 +31,7 @@
                   content += `
                     <div class="card mb-2">
                       <div class="card-header">
-                        Sample Post #${index + 1}
+                        Sample Post #${(pagination.pageSize * (pagination.pageNumber - 1)) + (index + 1)}
                       </div>
                       <div class="card-body">
                         <h5 class="card-title">${item.title}</h5>

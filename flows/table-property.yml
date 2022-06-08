@@ -1,5 +1,5 @@
 # Set name property
-name: Select Element - Bootstrap
+name: Table Property
 
 # Set engine URL
 engine: http://127.0.0.1:3000
@@ -7,22 +7,57 @@ engine: http://127.0.0.1:3000
 # Set entry page URL
 first_page: http://127.0.0.1:8888
 
+# Set recording option
+record: true
+
 # Flow process for every page
 flow:
 
-  # Write on input text
   - element:
-      selector: '[aria-label="Default select example"]'
-      select: Two
-  
+      contains:
+        selector: a
+        identifier: Table
+      action: Click
+
   - delay: 1
 
-  # Write on textarea text
-  - element:
-      selector: '[aria-label="multiple select example"]'
-      multiple:
-        - Two
-        - Three
-  
+  - table:
+      selector: '#table-1'
+      name: 'html-json-1'
+      fields:
+        - index: 0
+          name: First
+        - index: 1
+          name: Last
+        - index: 2
+          name: Handle
+
   - delay: 1
 
+  - table:
+      selector: '#table-2'
+      name: 'html-json-2'
+      fields:
+        - index: 0
+          name: celda 1
+        - index: 1
+          name: celda 2
+        - index: 2
+          name: celda 3
+        - index: 3
+          name: celda 4
+
+  - delay: 1
+
+  - table:
+      selector: '#table-3'
+      name: 'html-json-3'
+      fields:
+        - index: 0
+          name: Tabla Avanzada
+        - index: 1
+          name: Primera Col. Cab.
+        - index: 2
+          name: Segunda Col. Cab.
+
+  - delay: 1

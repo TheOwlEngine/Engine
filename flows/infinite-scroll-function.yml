@@ -1,28 +1,40 @@
 # Set name property
-name: Select Element - Bootstrap
+name: Infinite Scroll Function
 
 # Set engine URL
 engine: http://127.0.0.1:3000
 
 # Set entry page URL
-first_page: http://127.0.0.1:8888
+first_page: http://127.0.0.1:8888/infinite-scroll.html
+
+# Set total item per page
+items_on_page: 10
+
+# Set infinite scroll option
+infinite: true
+
+# Set total mouse scrolling behavior
+infinite_scroll: 10
+
+# Set recording option
+record: true
 
 # Flow process for every page
 flow:
 
-  # Write on input text
-  - element:
-      selector: '[aria-label="Default select example"]'
-      select: Two
-  
-  - delay: 1
+  - wrapper: .card:nth-child($loop_number)
 
-  # Write on textarea text
-  - element:
-      selector: '[aria-label="multiple select example"]'
-      multiple:
-        - Two
-        - Three
-  
-  - delay: 1
+  - take:
+      selector: .card-header
+      name: Header
+      parse: text
 
+  - take:
+      selector: .card-title
+      name: Title
+      parse: text
+
+  - take:
+      selector: .card-text
+      name: Description
+      parse: text

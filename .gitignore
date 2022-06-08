@@ -21,14 +21,14 @@ build/*
 logs/*
 
 # Resources directory
-resources/screenshots/*
+resources/images/*
 resources/json/*
 resources/videos/*
 
 # Keep some files
 !build/.gitkeep
 !logs/.gitkeep
-!resources/screenshots/index.html
+!resources/images/index.html
 !resources/json/index.html
 !resources/videos/index.html
 

@@ -1,5 +1,5 @@
 # Set name property
-name: Select Element - Bootstrap
+name: Capture Property
 
 # Set engine URL
 engine: http://127.0.0.1:3000
@@ -7,22 +7,56 @@ engine: http://127.0.0.1:3000
 # Set entry page URL
 first_page: http://127.0.0.1:8888
 
+# Set recording option
+record: true
+
 # Flow process for every page
 flow:
 
-  # Write on input text
   - element:
-      selector: '[aria-label="Default select example"]'
-      select: Two
-  
+      contains:
+        selector: a
+        identifier: Capture
+      action: Click
+
   - delay: 1
 
-  # Write on textarea text
-  - element:
-      selector: '[aria-label="multiple select example"]'
-      multiple:
-        - Two
-        - Three
-  
+  - capture:
+      selector: '#sample-1'
+      name: sample-1
+
+  - delay: 1
+
+  - capture:
+      selector: '#sample-2'
+      name: sample-2
+
+  - delay: 1
+
+  - capture:
+      selector: '#sample-3'
+      name: sample-3
+
+  - delay: 1
+
+  - capture:
+      selector: '#sample-4'
+      name: sample-4
+
+  - delay: 1
+
+  - capture:
+      name: sample-clip
+      clip:
+        top: 100
+        lef: 100
+        width: 100
+        height: 100
+
+  - delay: 1
+
+  - capture:
+      name: fullscreen
+
   - delay: 1
 

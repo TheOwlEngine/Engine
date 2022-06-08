@@ -1,5 +1,5 @@
 # Set name property
-name: Select Element - Bootstrap
+name: Take Property
 
 # Set engine URL
 engine: http://127.0.0.1:3000
@@ -7,22 +7,59 @@ engine: http://127.0.0.1:3000
 # Set entry page URL
 first_page: http://127.0.0.1:8888
 
+# Set recording option
+record: true
+
 # Flow process for every page
 flow:
 
-  # Write on input text
   - element:
-      selector: '[aria-label="Default select example"]'
-      select: Two
+      contains:
+        selector: a
+        identifier: Take
+      action: Click
+
+  - delay: 1
+
+  - take:
+      selector: h1
+      name: Title
+      parse: text
   
   - delay: 1
 
-  # Write on textarea text
-  - element:
-      selector: '[aria-label="multiple select example"]'
-      multiple:
-        - Two
-        - Three
+  - take:
+      selector: h1 + div > div
+      name: From
+      parse: text
+  
+  - delay: 1
+
+  - take:
+      selector: .shortdescription + p
+      name: Short Description
+      parse: text
+  
+  - delay: 1
+
+  - take:
+      selector: '#toc > ul'
+      name: Table of Contents
+      parse: html
+  
+  - delay: 1
+
+  - take:
+      selector: h2 + p
+      name: Description
+      parse: text
+  
+  - delay: 1
+
+  - take:
+      selector: a > img
+      name: Image
+      parse: image
   
   - delay: 1
 

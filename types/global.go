@@ -16,24 +16,23 @@ type Result struct {
 	Infinite       bool          `json:"infinite"`
 	InfiniteScroll int           `json:"infinite_scroll"`
 	Paginate       bool          `json:"paginate"`
-	PaginateButton string        `json:"paginate_button,omitempty"`
 	PaginateLimit  int           `json:"paginate_limit"`
 	Record         bool          `json:"record"`
 	Recording      string        `json:"recording,omitempty"`
 	Result         []ResultPage  `json:"result,omitempty"`
 	Usage          ResultUsage   `json:"usage,omitempty"`
+	Errors         []string      `json:"errors,omitempty"`
 }
 
 type ResultPage struct {
+	Title    string          `json:"title,omitempty"`
+	Url      string          `json:"url,omitempty"`
 	Page     int             `json:"page"`
 	Duration time.Duration   `json:"duration,omitempty"`
 	Content  []ResultContent `json:"content,omitempty"`
 }
 
 type ResultContent struct {
-	Title   string `json:"title,omitempty"`
-	Url     string `json:"url,omitempty"`
-	Page    int    `json:"page"`
 	Type    string `json:"type,omitempty"`
 	Length  int    `json:"length"`
 	Name    string `json:"name,omitempty"`
@@ -76,6 +75,7 @@ type Flow struct {
 
 type Element struct {
 	Selector string   `yaml:"selector"`
+	Contains Contains `yaml:"contains"`
 	Write    string   `yaml:"write"`
 	Value    string   `yaml:"value"`
 	Select   string   `yaml:"select"`
@@ -87,23 +87,23 @@ type Element struct {
 }
 
 type Take struct {
-	Name           string       `yaml:"name"`
-	Selector       string       `yaml:"selector"`
-	Contains       TakeContains `yaml:"contains"`
-	NextToSelector string       `yaml:"next_to_selector"`
-	NextToContains TakeContains `yaml:"next_to_contains"`
-	Parse          string       `yaml:"parse"`
-	UseForNavigate bool         `yaml:"use_for_navigate"`
+	Name           string   `yaml:"name"`
+	Selector       string   `yaml:"selector"`
+	Contains       Contains `yaml:"contains"`
+	NextToSelector string   `yaml:"next_to_selector"`
+	NextToContains Contains `yaml:"next_to_contains"`
+	Parse          string   `yaml:"parse"`
+	UseForNavigate bool     `yaml:"use_for_navigate"`
 }
 
-type TakeContains struct {
+type Contains struct {
 	Selector   string `yaml:"selector"`
 	Identifier string `yaml:"identifier"`
 }
 
 type Capture struct {
 	Selector string      `yaml:"selector"`
-	Path     string      `yaml:"path"`
+	Name     string      `yaml:"name"`
 	Delay    int         `yaml:"delay"`
 	Clip     CaptureClip `yaml:"clip"`
 }
