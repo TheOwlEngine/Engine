@@ -40,7 +40,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-var owlProxyAPI string = "http://owlengine.com/api/proxy?url="
+var owlProxyAPI string = "https://owlengine.com/api/proxy?url="
 
 var engineBrowser rod.Browser
 
