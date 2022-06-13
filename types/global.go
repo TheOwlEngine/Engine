@@ -83,62 +83,62 @@ type Config struct {
 }
 
 type Flow struct {
-	Element        Element `yaml:"element"`
-	Take           Take    `yaml:"take"`
-	Navigate       bool    `yaml:"navigate"`
-	BackToPrevious bool    `yaml:"back_to_previous"`
-	WaitFor        string  `yaml:"wait_for"`
-	Delay          int     `yaml:"delay"`
-	Scroll         int     `yaml:"scroll"`
-	Capture        Capture `yaml:"capture"`
-	Table          Table   `yaml:"table"`
-	Wrapper        string  `yaml:"wrapper"`
+	Element        Element `yaml:"element" json:"element"`
+	Take           Take    `yaml:"take" json:"take"`
+	Navigate       bool    `yaml:"navigate" json:"navigate"`
+	BackToPrevious bool    `yaml:"back_to_previous" json:"back_to_previous"`
+	WaitFor        string  `yaml:"wait_for" json:"wait_for"`
+	Delay          int     `yaml:"delay" json:"delay"`
+	Scroll         int     `yaml:"scroll" json:"scroll"`
+	Capture        Capture `yaml:"capture" json:"capture"`
+	Table          Table   `yaml:"table" json:"table"`
+	Wrapper        string  `yaml:"wrapper" json:"wrapper"`
 }
 
 type Element struct {
-	Selector string   `yaml:"selector"`
-	Contains Contains `yaml:"contains"`
-	Write    string   `yaml:"write"`
-	Value    string   `yaml:"value"`
-	Select   string   `yaml:"select"`
-	Multiple []string `yaml:"multiple"`
-	Check    string   `yaml:"check"`
-	Radio    string   `yaml:"radio"`
-	// Upload   string   `yaml:"upload"`
-	Action string `yaml:"action"`
+	Selector string   `yaml:"selector" json:"selector"`
+	Contains Contains `yaml:"contains" json:"contains"`
+	Write    string   `yaml:"write" json:"write"`
+	Value    string   `yaml:"value" json:"value"`
+	Select   string   `yaml:"select" json:"select"`
+	Multiple []string `yaml:"multiple" json:"multiple"`
+	Check    string   `yaml:"check" json:"check"`
+	Radio    string   `yaml:"radio" json:"radio"`
+	// Upload   string   `yaml:"upload" json:"upload"`
+	Action string `yaml:"action" json:"action"`
 }
 
 type Take struct {
-	Name           string   `yaml:"name"`
-	Selector       string   `yaml:"selector"`
-	Contains       Contains `yaml:"contains"`
-	NextToSelector string   `yaml:"next_to_selector"`
-	NextToContains Contains `yaml:"next_to_contains"`
-	Parse          string   `yaml:"parse"`
-	UseForNavigate bool     `yaml:"use_for_navigate"`
+	Name           string   `yaml:"name" json:"name"`
+	Selector       string   `yaml:"selector" json:"selector"`
+	Contains       Contains `yaml:"contains" json:"contains"`
+	NextToSelector string   `yaml:"next_to_selector" json:"next_to_selector"`
+	NextToContains Contains `yaml:"next_to_contains" json:"next_to_contains"`
+	Parse          string   `yaml:"parse" json:"parse"`
+	UseForNavigate bool     `yaml:"use_for_navigate" json:"use_for_navigate"`
 }
 
 type Contains struct {
-	Selector   string `yaml:"selector"`
-	Identifier string `yaml:"identifier"`
+	Selector   string `yaml:"selector" json:"selector"`
+	Identifier string `yaml:"identifier" json:"identifier"`
 }
 
 type Capture struct {
-	Selector string      `yaml:"selector"`
-	Name     string      `yaml:"name"`
-	Delay    int         `yaml:"delay"`
-	Clip     CaptureClip `yaml:"clip"`
+	Selector string      `yaml:"selector" json:"selector"`
+	Name     string      `yaml:"name" json:"name"`
+	Delay    int         `yaml:"delay" json:"delay"`
+	Clip     CaptureClip `yaml:"clip" json:"clip"`
 }
 
 type CaptureClip struct {
-	Top    float64 `yaml:"top"`
-	Left   float64 `yaml:"left"`
-	Width  float64 `yaml:"width"`
-	Height float64 `yaml:"height"`
+	Top    float64 `yaml:"top" json:"top"`
+	Left   float64 `yaml:"left" json:"left"`
+	Width  float64 `yaml:"width" json:"width"`
+	Height float64 `yaml:"height" json:"height"`
 }
 
 type Table struct {
-	Selector string   `yaml:"selector"`
-	Name     string   `yaml:"name"`
-	Fields   []string `yaml:"fields"`
+	Selector string   `yaml:"selector" json:"selector"`
+	Name     string   `yaml:"name" json:"name"`
+	Fields   []string `yaml:"fields" json:"fields"`
 }

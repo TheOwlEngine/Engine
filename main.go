@@ -908,14 +908,14 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 						if source != nil {
 							sourceText = *source
+
+							if !strings.Contains(sourceText, "http") {
+								sourceText = strings.ReplaceAll(temporaryDomainName+sourceText, "//", "/")
+							}
 						}
 
 						if flowData.Take.UseForNavigate {
-							if strings.Contains(sourceText, "https") {
-								temporaryNavigateUrl = sourceText
-							} else {
-								temporaryNavigateUrl = temporaryDomainName + sourceText
-							}
+							temporaryNavigateUrl = sourceText
 						}
 					}
 
@@ -942,6 +942,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				var temporaryTableData []types.ResultTableData
 				var temporaryTableHeader []string
 				var temporaryTableAnchor bool
+				var temporaryTableHyperlink bool
 
 				tableString := detectedElement.MustHTML()
 
@@ -1022,6 +1023,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 							}
 
 							temporaryTableAnchor = false
+							temporaryTableHyperlink = false
 						}
 
 						if token == html.StartTagToken && content == "a" {
@@ -1030,6 +1032,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 							for _, attr := range attribute {
 								if attr.Key == "href" {
 									tableCellName = attr.Val
+									temporaryTableHyperlink = true
 								}
 							}
 
@@ -1045,6 +1048,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 								}
 								if attr.Key == "src" {
 									tableCellContent = attr.Val
+									temporaryTableHyperlink = true
 								}
 							}
 						}
@@ -1076,6 +1080,10 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 							}
 
 							if len(tableCellContent) > 0 && continueExtract {
+								if temporaryTableHyperlink && !strings.Contains(tableCellContent, "http") {
+									tableCellContent = strings.ReplaceAll(temporaryDomainName+tableCellContent, "//", "/")
+								}
+
 								temporaryTableData = append(temporaryTableData, types.ResultTableData{
 									Type:    tableCellType,
 									Index:   tableCellCount,
