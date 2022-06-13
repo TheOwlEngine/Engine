@@ -987,7 +987,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 							if token == html.TextToken && content != "" && content != " " && len(content) > 0 {
 								temporaryTableHeader = append(temporaryTableHeader, content)
 
-								if tableCellCount > 1 && len(flowData.Table.Fields) > 0 {
+								if len(flowData.Table.Fields) > 0 {
 									continueExtract = Contains(flowData.Table.Fields, content)
 								}
 
