@@ -49,7 +49,7 @@ func main() {
 
 			if isFinish {
 				end := time.Now()
-				fmt.Println("")
+				println("")
 				log.Printf("%s All flow finished in %s (s)", blue("[Owl]"), green(end.Sub(start).Seconds()))
 			}
 

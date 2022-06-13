@@ -44,20 +44,42 @@ type ResultUsage struct {
 	Bandwidth map[string]float64 `json:"bandwidth,omitempty"`
 }
 
+type ResultTable struct {
+	Name   string              `json:"name"`
+	Column int                 `json:"column"`
+	Row    int                 `json:"row"`
+	Header []ResultTableHead   `json:"header"`
+	Data   [][]ResultTableData `json:"data"`
+}
+
+type ResultTableHead struct {
+	Index   int    `json:"index"`
+	Length  int    `json:"length"`
+	Content string `json:"content,omitempty"`
+}
+
+type ResultTableData struct {
+	Type    string `json:"type,omitempty"`
+	Index   int    `json:"index"`
+	Length  int    `json:"length"`
+	Name    string `json:"name,omitempty"`
+	Content string `json:"content,omitempty"`
+}
+
 type Config struct {
-	Name           string `yaml:"name"`
-	Engine         string `yaml:"engine"`
-	FirstPage      string `yaml:"first_page"`
-	ItemsOnPage    int    `yaml:"items_on_page"`
-	Infinite       bool   `yaml:"infinite"`
-	InfiniteScroll int    `yaml:"infinite_scroll"`
-	Paginate       bool   `yaml:"paginate"`
-	PaginateButton string `yaml:"paginate_button"`
-	PaginateLimit  int    `yaml:"paginate_limit"`
-	Proxy          bool   `yaml:"proxy"`
-	ProxyCountry   string `yaml:"proxy_country"`
-	Record         bool   `yaml:"record"`
-	Flow           []Flow `yaml:"flow"`
+	Name           string `yaml:"name" json:"name"`
+	Engine         string `yaml:"engine" json:"engine"`
+	FirstPage      string `yaml:"first_page" json:"first_page"`
+	ItemsOnPage    int    `yaml:"items_on_page" json:"items_on_page"`
+	Infinite       bool   `yaml:"infinite" json:"infinite"`
+	InfiniteScroll int    `yaml:"infinite_scroll" json:"infinite_scroll"`
+	Paginate       bool   `yaml:"paginate" json:"paginate"`
+	PaginateButton string `yaml:"paginate_button" json:"paginate_button"`
+	PaginateLimit  int    `yaml:"paginate_limit" json:"paginate_limit"`
+	Proxy          bool   `yaml:"proxy" json:"proxy"`
+	ProxyCountry   string `yaml:"proxy_country" json:"proxy_country"`
+	Record         bool   `yaml:"record" json:"record"`
+	Flow           []Flow `yaml:"flow" json:"flow"`
 }
 
 type Flow struct {
@@ -116,12 +138,7 @@ type CaptureClip struct {
 }
 
 type Table struct {
-	Selector string       `yaml:"selector"`
-	Name     string       `yaml:"name"`
-	Fields   []TableField `yaml:"fields"`
-}
-
-type TableField struct {
-	Index int    `yaml:"index"`
-	Name  string `yaml:"name"`
+	Selector string   `yaml:"selector"`
+	Name     string   `yaml:"name"`
+	Fields   []string `yaml:"fields"`
 }

@@ -8,7 +8,7 @@ engine: http://127.0.0.1:3000
 first_page: http://127.0.0.1:8888
 
 # Set recording option
-record: true
+# record: true
 
 # Flow process for every page
 flow:
@@ -25,12 +25,8 @@ flow:
       selector: '#table-1'
       name: 'html-json-1'
       fields:
-        - index: 0
-          name: First
-        - index: 1
-          name: Last
-        - index: 2
-          name: Handle
+        - First
+        - Handle
 
   - delay: 1
 
@@ -38,14 +34,9 @@ flow:
       selector: '#table-2'
       name: 'html-json-2'
       fields:
-        - index: 0
-          name: celda 1
-        - index: 1
-          name: celda 2
-        - index: 2
-          name: celda 3
-        - index: 3
-          name: celda 4
+        - celda 1
+        - celda 2
+        - celda 4
 
   - delay: 1
 
@@ -53,11 +44,7 @@ flow:
       selector: '#table-3'
       name: 'html-json-3'
       fields:
-        - index: 0
-          name: Tabla Avanzada
-        - index: 1
-          name: Primera Col. Cab.
-        - index: 2
-          name: Segunda Col. Cab.
+        - Tabla Avanzada
+        - Segunda Col. Cab.
 
   - delay: 1

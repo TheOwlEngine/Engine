@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"math"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -231,8 +232,8 @@ func HandleResponse(w http.ResponseWriter, data types.Result, pageId string) {
 	}
 
 	jsonTable, _ := json.Marshal(data)
-	jsonEncoded := UnescapeUnicode(jsonTable)
-	jsonReplacer := strings.NewReplacer(`"[`, `[`, `]"`, `]`, `$\"`, `"`, `$\n`, "\n")
+	jsonEncoded := Unescape(jsonTable)
+	jsonReplacer := strings.NewReplacer(`"{`, `{`, `}"`, `}`, `"[`, `[`, `]"`, `]`, `$\"`, `"`, `$\n`, "\n")
 	jsonResult := jsonReplacer.Replace(jsonEncoded)
 
 	w.Write([]byte(jsonResult))
@@ -240,7 +241,7 @@ func HandleResponse(w http.ResponseWriter, data types.Result, pageId string) {
 
 func Noop(w http.ResponseWriter, r *http.Request) {}
 
-func UnescapeUnicode(json json.RawMessage) string {
+func Unescape(json json.RawMessage) string {
 	result, errorUnquote := strconv.Unquote(strings.Replace(strconv.Quote(string(json)), `\\u`, `\u`, -1))
 
 	if errorUnquote != nil {
@@ -248,6 +249,16 @@ func UnescapeUnicode(json json.RawMessage) string {
 	}
 
 	return result
+}
+
+func Contains(sl []string, name string) bool {
+	for _, value := range sl {
+		if value == name {
+			return true
+		}
+	}
+
+	return false
 }
 
 func setupResponse(w *http.ResponseWriter, req *http.Request) {
@@ -271,14 +282,14 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 		if errorMjpeg != nil {
 			log.Printf(red("[ Engine ] %v\n"), errorMjpeg)
-			globalErrors = append(globalErrors, `# [ Engine ] Cannot create temporary motion image`)
+			globalErrors = append(globalErrors, `# [ Engine ] Failed to create temporary motion image`)
 		}
 
 		matches, errorGlobFile := filepath.Glob(videoDirectory + pageId + "-*-frame.jpeg")
 
 		if errorGlobFile != nil {
 			log.Printf(red("[ Engine ] %v\n"), errorGlobFile)
-			globalErrors = append(globalErrors, `# [ Engine ] Cannot list generated motion capture`)
+			globalErrors = append(globalErrors, `# [ Engine ] Failed to list generated motion image`)
 		}
 
 		sort.Strings(matches)
@@ -288,7 +299,7 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 			if errorReadFile != nil {
 				log.Printf(red("[ Engine ] %v\n"), errorReadFile)
-				globalErrors = append(globalErrors, `# [ Engine ] Failed to read rendered motion capture`)
+				globalErrors = append(globalErrors, `# [ Engine ] Failed to read rendered motion image`)
 			}
 
 			renderer.AddFrame(data)
@@ -301,7 +312,7 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 			if errorRemoveFile != nil {
 				log.Printf(red("[ Engine ] %v\n"), errorRemoveFile)
-				globalErrors = append(globalErrors, `# [ Engine ] Failed to remove rendered motion capture`)
+				globalErrors = append(globalErrors, `# [ Engine ] Failed to remove rendered motion image`)
 			}
 		}
 
@@ -484,9 +495,9 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 					if errorFileSize != nil {
 						log.Printf(red("[ Engine ] %v"), errorFileSize)
-						globalErrors = append(globalErrors, `# [ Engine ] Cannot read recorded video size`)
+						globalErrors = append(globalErrors, `# [ Engine ] Failed to read recorded video size`)
 					} else {
-						diskUsage["video"] += float64(fileSize.Size())
+						diskUsage["videos"] += float64(fileSize.Size())
 					}
 				}
 
@@ -551,12 +562,22 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, pageId string, paginateIndex int, paginateLimit int, scraperResult []types.ResultPage, diskUsage map[string]float64) (bool, []types.ResultPage) {
+	red := color.New(color.FgRed).SprintFunc()
+
 	pageStart := time.Now()
 	temporaryContents := make([]types.ResultContent, 0, len(request.Flow))
 
 	if paginateIndex == 0 {
-		page.Navigate(request.FirstPage)
-		page.WaitNavigation(proto.PageLifecycleEventNameNetworkIdle)
+		err := rod.Try(func() {
+			page.Timeout(10 * time.Second).MustNavigate(request.FirstPage)
+			page.WaitNavigation(proto.PageLifecycleEventNameNetworkIdle)
+		})
+
+		if errors.Is(err, context.DeadlineExceeded) {
+			log.Printf(red("[ Engine ] Failed to navigate to %s, due to context deadline exceeded"), request.FirstPage)
+		} else if err != nil {
+			log.Printf(red("[ Engine ] Failed to navigate to %s, due to %v"), request.FirstPage, err)
+		}
 	}
 
 	if request.ItemsOnPage > 0 && paginateLimit > 0 {
@@ -691,12 +712,24 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			}
 		})
 
+		if flowData.Element.Contains.Identifier != "" {
+			selectorText = selectorText + " `" + flowData.Element.Contains.Identifier + "`"
+		}
+
+		if flowData.Take.Contains.Identifier != "" {
+			selectorText = selectorText + " `" + flowData.Take.Contains.Identifier + "`"
+		}
+
+		if flowData.Take.NextToContains.Identifier != "" {
+			selectorText = selectorText + " `" + flowData.Take.NextToContains.Identifier + "`"
+		}
+
 		if errors.Is(fieldError, context.DeadlineExceeded) {
 			log.Printf(red("[ Engine ] Selector %s not found"), selectorText)
-			globalErrors = append(globalErrors, fmt.Sprintf(`# [ Engine ] Selector %s not found`, selectorText))
+			globalErrors = append(globalErrors, fmt.Sprintf(`# [ Engine ] Failed to find selector %s`, selectorText))
 		} else if fieldError != nil {
 			log.Printf(red("[ Engine ] %v"), fieldError)
-			globalErrors = append(globalErrors, fmt.Sprintf(`# [ Engine ] Cannot find selector %s`, selectorText))
+			globalErrors = append(globalErrors, fmt.Sprintf(`# [ Engine ] Failed to find selector %s`, selectorText))
 		}
 
 		// Process without Element
@@ -718,8 +751,16 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				log.Printf(yellow("[ Engine ] Page Index %d"), paginateIndex)
 				log.Printf(yellow("[ Engine ] Navigate Url %s"), temporaryNavigateUrl)
 
-				page.Navigate(temporaryNavigateUrl)
-				page.WaitNavigation(proto.PageLifecycleEventNameNetworkIdle)
+				err := rod.Try(func() {
+					page.Timeout(10 * time.Second).MustNavigate(temporaryNavigateUrl)
+					page.WaitNavigation(proto.PageLifecycleEventNameNetworkIdle)
+				})
+
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Printf(red("[ Engine ] Failed to navigate to %s, due to context deadline exceeded"), request.FirstPage)
+				} else if err != nil {
+					log.Printf(red("[ Engine ] Failed to navigate to %s, due to %v"), request.FirstPage, err)
+				}
 			}
 
 		} else if flowData.BackToPrevious {
@@ -786,8 +827,8 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 					})
 
 					if captureError != nil {
-						log.Printf(red("%s Cannot capture missing or not displayed element"), "[ Engine ]")
-						globalErrors = append(globalErrors, `# [ Engine ] Cannot capture missing or not displayed element`)
+						log.Printf(red("%s Failed to capture missing element %s"), "[ Engine ]", flowData.Capture.Selector)
+						globalErrors = append(globalErrors, fmt.Sprintf(`# [ Engine ] Failed to capture missing element %s`, flowData.Capture.Selector))
 					}
 				}
 
@@ -803,14 +844,13 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 				if errorFilePosition != nil {
 					log.Printf(red("[ Engine ] %v"), errorFilePosition)
-					globalErrors = append(globalErrors, `# [ Engine ] Captured element not created`)
 				} else {
 					fileSize = int(filePosition.Size())
 				}
 
-				diskUsage["capture"] += float64(fileSize)
+				diskUsage["images"] += float64(fileSize)
 
-				resultContent.Type = "capture"
+				resultContent.Type = "image"
 				resultContent.Length = fileSize
 				resultContent.Name = flowData.Capture.Name
 
@@ -885,23 +925,185 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 					resultContent.Content = string(sourceText)
 				}
 
-			} else if len(flowData.Table.Fields) > 0 {
+			} else if flowData.Table.Name != "" {
+
+				var tableHeader []types.ResultTableHead
+				var tableRow [][]types.ResultTableData
+
+				var tableRowCount int = 0
+				var tableCellCount int = 0
+				var tableHeaderCount int = 0
+
+				var tableCellName string
+				var tableCellType string
+				var tableCellContent string
+
+				var temporaryCellName string
+				var temporaryTableData []types.ResultTableData
+				var temporaryTableHeader []string
+				var temporaryTableAnchor bool
+
 				tableString := detectedElement.MustHTML()
-				tableToken := strings.NewReader("<html><body>" + tableString + "</body></html>")
-				tableTokenizer := html.NewTokenizer(tableToken)
-				tableRowCount := detectedElement.MustEval("() => this.querySelectorAll('tr').length").Int()
 
-				//                  row    column value
-				tableContent := make([]map[string]string, tableRowCount)
+				walk := html.NewTokenizer(strings.NewReader(`<html><body>` + tableString + `</body></html>`))
 
-				var tableRowCounter int = 0
-				var tableColumnCounter int = 0
+				for walk.Token().Data != "html" {
+					regexNewline := regexp.MustCompile(`\r?\n|\t`)
+					regexSpaces := regexp.MustCompile(`\s\s+`)
 
-				tableContent = extractTable(tableTokenizer, tableContent, flowData.Table.Fields, tableRowCounter, tableColumnCounter)
+					token := walk.Next()
+					data := walk.Token()
+					attribute := data.Attr
+					content := regexNewline.ReplaceAllString(data.Data, "")
+					content = regexSpaces.ReplaceAllString(content, " ")
 
-				resultOfTable := tableContent[1:]
+					if token == html.StartTagToken {
+						if content == "tr" {
+							tableCellCount = 0
+						}
 
-				jsonTable, _ := json.Marshal(resultOfTable)
+						if content == "td" || content == "th" {
+							tableCellCount++
+						}
+					}
+
+					if token == html.EndTagToken {
+
+						if content == "thead" || content == "tr" {
+							tableRowCount++
+						}
+
+						if content == "table" {
+							break
+						}
+
+					}
+
+					if tableRowCount == 0 {
+						continueExtract := true
+
+						if tableCellCount > 0 {
+							if token == html.TextToken && content != "" && content != " " && len(content) > 0 {
+								temporaryTableHeader = append(temporaryTableHeader, content)
+
+								if tableCellCount > 1 && len(flowData.Table.Fields) > 0 {
+									continueExtract = Contains(flowData.Table.Fields, content)
+								}
+
+								if continueExtract {
+									tableHeader = append(tableHeader, types.ResultTableHead{
+										Index:   tableCellCount,
+										Length:  len(content),
+										Content: content,
+									})
+								}
+							}
+						}
+
+						tableHeaderCount = tableCellCount
+					}
+
+					if tableRowCount > 0 {
+						continueExtract := true
+
+						if token == html.StartTagToken && content == "tr" {
+							temporaryTableData = make([]types.ResultTableData, 0)
+						}
+
+						if token == html.StartTagToken && (content == "td" || content == "th") {
+							tableCellType = "text"
+							tableCellContent = ""
+
+							for cellIndex := range temporaryTableHeader {
+								if cellIndex == tableCellCount-1 {
+									tableCellName = temporaryTableHeader[tableCellCount-1]
+									temporaryCellName = temporaryTableHeader[tableCellCount-1]
+								}
+							}
+
+							temporaryTableAnchor = false
+						}
+
+						if token == html.StartTagToken && content == "a" {
+							tableCellType = "anchor"
+
+							for _, attr := range attribute {
+								if attr.Key == "href" {
+									tableCellName = attr.Val
+								}
+							}
+
+							temporaryTableAnchor = true
+						}
+
+						if token == html.StartTagToken && content == "img" {
+							tableCellType = "image"
+
+							for _, attr := range attribute {
+								if attr.Key == "alt" {
+									tableCellName = attr.Val
+								}
+								if attr.Key == "src" {
+									tableCellContent = attr.Val
+								}
+							}
+						}
+
+						if len(tableCellContent) == 0 && token == html.TextToken && content != "" && content != " " && len(content) > 0 {
+
+							if temporaryTableAnchor {
+								temporaryName := tableCellName
+
+								tableCellName = content
+								tableCellContent = temporaryName
+							} else {
+								tableCellContent = content
+							}
+						}
+
+						if !temporaryTableAnchor && token == html.TextToken && tableCellContent != content {
+							tableCellContent = tableCellContent + " " + content
+						}
+
+						if token == html.EndTagToken && (content == "td" || content == "th") {
+							if len(flowData.Table.Fields) > 0 {
+								continueExtract = Contains(flowData.Table.Fields, temporaryCellName)
+							}
+
+							if len(tableCellContent) == 0 {
+								tableCellType = "number"
+								tableCellContent = strconv.Itoa(tableRowCount)
+							}
+
+							if len(tableCellContent) > 0 && continueExtract {
+								temporaryTableData = append(temporaryTableData, types.ResultTableData{
+									Type:    tableCellType,
+									Index:   tableCellCount,
+									Length:  len(tableCellContent),
+									Name:    tableCellName,
+									Content: tableCellContent,
+								})
+							}
+						}
+
+						if token == html.EndTagToken && content == "tr" {
+							if temporaryTableData != nil {
+								tableRow = append(tableRow, temporaryTableData)
+							}
+
+							temporaryTableData = nil
+						}
+					}
+
+				}
+
+				jsonTable, _ := json.Marshal(types.ResultTable{
+					Name:   flowData.Table.Name,
+					Column: tableHeaderCount,
+					Row:    tableRowCount - 1,
+					Header: tableHeader,
+					Data:   tableRow,
+				})
 
 				resultContent.Type = "table"
 				resultContent.Length = len(jsonTable)
@@ -922,57 +1124,4 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 	}
 
 	return false, pageContent
-}
-
-func extractTable(tableElement *html.Tokenizer, tableContent []map[string]string, tableFields []types.TableField, tableRowCounter int, tableColumnCounter int) []map[string]string {
-	var isContinue bool = true
-	tableRow := tableElement.Next()
-
-	if tableRow == html.StartTagToken {
-		tableData := tableElement.Token()
-
-		if tableData.Data == "tr" {
-			tableContent[tableRowCounter] = make(map[string]string)
-			tableColumnCounter = 0
-		}
-
-		if tableData.Data == "td" {
-			inner := tableElement.Next()
-
-			if inner == html.TextToken {
-				for _, field := range tableFields {
-					if tableColumnCounter == field.Index {
-						tableText := (string)(tableElement.Text())
-						tableData := strings.TrimSpace(tableText)
-
-						columnValue := tableFields[field.Index].Name
-
-						tableContent[tableRowCounter][columnValue] = tableData
-					}
-				}
-			}
-		}
-	}
-
-	if tableRow == html.EndTagToken {
-		tagElement := tableElement.Token()
-
-		if tagElement.Data == "tr" {
-			tableRowCounter++
-		}
-
-		if tagElement.Data == "td" {
-			tableColumnCounter++
-		}
-
-		if tagElement.Data == "table" {
-			isContinue = false
-		}
-	}
-
-	if isContinue {
-		return extractTable(tableElement, tableContent, tableFields, tableRowCounter, tableColumnCounter)
-	} else {
-		return tableContent
-	}
 }
