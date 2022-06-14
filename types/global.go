@@ -90,9 +90,9 @@ type Flow struct {
 	WaitFor        string  `yaml:"wait_for" json:"wait_for"`
 	Delay          int     `yaml:"delay" json:"delay"`
 	Scroll         int     `yaml:"scroll" json:"scroll"`
+	Wrapper        string  `yaml:"wrapper" json:"wrapper"`
 	Capture        Capture `yaml:"capture" json:"capture"`
 	Table          Table   `yaml:"table" json:"table"`
-	Wrapper        string  `yaml:"wrapper" json:"wrapper"`
 }
 
 type Element struct {

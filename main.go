@@ -663,6 +663,11 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			fieldName = flowData.Take.Name
 		}
 
+		if flowData.Take.NextToSelector != "" {
+			selectorText = flowData.Take.NextToSelector
+			fieldName = flowData.Take.Name
+		}
+
 		if flowData.Take.Contains.Selector != "" {
 			selectorText = flowData.Take.Contains.Selector
 			fieldName = flowData.Take.Name
@@ -738,6 +743,19 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 			var sleepTime int = int(flowData.Delay)
 			time.Sleep(time.Second * time.Duration(sleepTime))
+
+		} else if flowData.WaitFor != "" {
+
+			err := rod.Try(func() {
+				page.Timeout(10 * time.Second).MustElement(flowData.WaitFor)
+				page.MustWaitLoad()
+			})
+
+			if errors.Is(err, context.DeadlineExceeded) {
+				log.Printf(red("[ Engine ] Failed to wait for element %s, due to context deadline exceeded"), flowData.WaitFor)
+			} else if err != nil {
+				log.Printf(red("[ Engine ] Failed to wait for element %s, due to %v"), flowData.WaitFor, err)
+			}
 
 		} else if flowData.Scroll > 0 {
 
