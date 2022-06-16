@@ -87,7 +87,7 @@ type Flow struct {
 	Take           Take    `yaml:"take" json:"take"`
 	Navigate       bool    `yaml:"navigate" json:"navigate"`
 	BackToPrevious bool    `yaml:"back_to_previous" json:"back_to_previous"`
-	WaitFor        string  `yaml:"wait_for" json:"wait_for"`
+	WaitFor        WaitFor `yaml:"wait_for" json:"wait_for"`
 	Delay          int     `yaml:"delay" json:"delay"`
 	Scroll         int     `yaml:"scroll" json:"scroll"`
 	Wrapper        string  `yaml:"wrapper" json:"wrapper"`
@@ -121,6 +121,11 @@ type Take struct {
 type Contains struct {
 	Selector   string `yaml:"selector" json:"selector"`
 	Identifier string `yaml:"identifier" json:"identifier"`
+}
+
+type WaitFor struct {
+	Selector string `yaml:"selector" json:"selector"`
+	Delay    int    `yaml:"delay" json:"delay"`
 }
 
 type Capture struct {

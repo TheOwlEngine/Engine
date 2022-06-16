@@ -193,7 +193,7 @@ func HandleHTTPRequest() {
 
 	if errorListener != nil {
 		log.Printf(red("[ Engine ] %v"), errorListener)
-		globalErrors = append(globalErrors, `# [ Engine ] Something went wrong on our server`)
+		globalErrors = append(globalErrors, `Something went wrong on our server`)
 	}
 
 	log.Printf("%s Server running on http://127.0.0.1:%s\n", green("[ Engine ]"), enginePort)
@@ -282,14 +282,14 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 		if errorMjpeg != nil {
 			log.Printf(red("[ Engine ] %v\n"), errorMjpeg)
-			globalErrors = append(globalErrors, `# [ Engine ] Failed to create temporary motion image`)
+			globalErrors = append(globalErrors, `Failed to create temporary motion image`)
 		}
 
 		matches, errorGlobFile := filepath.Glob(videoDirectory + pageId + "-*-frame.jpeg")
 
 		if errorGlobFile != nil {
 			log.Printf(red("[ Engine ] %v\n"), errorGlobFile)
-			globalErrors = append(globalErrors, `# [ Engine ] Failed to list generated motion image`)
+			globalErrors = append(globalErrors, `Failed to list generated motion image`)
 		}
 
 		sort.Strings(matches)
@@ -299,7 +299,7 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 			if errorReadFile != nil {
 				log.Printf(red("[ Engine ] %v\n"), errorReadFile)
-				globalErrors = append(globalErrors, `# [ Engine ] Failed to read rendered motion image`)
+				globalErrors = append(globalErrors, `Failed to read rendered motion image`)
 			}
 
 			renderer.AddFrame(data)
@@ -312,7 +312,7 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 			if errorRemoveFile != nil {
 				log.Printf(red("[ Engine ] %v\n"), errorRemoveFile)
-				globalErrors = append(globalErrors, `# [ Engine ] Failed to remove rendered motion image`)
+				globalErrors = append(globalErrors, `Failed to remove rendered motion image`)
 			}
 		}
 
@@ -323,7 +323,7 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 		if errorFFmpeg != nil {
 			log.Printf(red("[ Engine ] %v\n"), errorFFmpeg)
-			globalErrors = append(globalErrors, `# [ Engine ] Failed to compress temporary motion image`)
+			globalErrors = append(globalErrors, `Failed to compress temporary motion image`)
 		}
 
 		if len(stdout) > 0 {
@@ -334,14 +334,14 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 		if errorRemoveTemporary != nil {
 			log.Printf(red("[ Engine ] %v\n"), errorRemoveTemporary)
-			globalErrors = append(globalErrors, `# [ Engine ] Failed to remove temporary motion image`)
+			globalErrors = append(globalErrors, `Failed to remove temporary motion image`)
 		}
 
 		errorRemoveCompressed := os.Rename(compressedPath, videoPath)
 
 		if errorRemoveCompressed != nil {
 			log.Printf(red("[ Engine ] %v\n"), errorRemoveCompressed)
-			globalErrors = append(globalErrors, `# [ Engine ] Failed to remove compressed motion image`)
+			globalErrors = append(globalErrors, `Failed to remove compressed motion image`)
 		}
 	}()
 
@@ -466,7 +466,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				if errorParseUrl != nil {
 					log.Printf(red("[ Engine ] %v"), errorParseUrl)
-					globalErrors = append(globalErrors, `# [ Engine ] Failed to decode your first page URL`)
+					globalErrors = append(globalErrors, `Failed to decode your first page URL`)
 				}
 
 				temporaryDomainName = parsedUrl.Scheme + "://" + parsedUrl.Hostname()
@@ -495,7 +495,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 					if errorFileSize != nil {
 						log.Printf(red("[ Engine ] %v"), errorFileSize)
-						globalErrors = append(globalErrors, `# [ Engine ] Failed to read recorded video size`)
+						globalErrors = append(globalErrors, `Failed to read recorded video size`)
 					} else {
 						diskUsage["videos"] += float64(fileSize.Size())
 					}
@@ -571,6 +571,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 		err := rod.Try(func() {
 			page.Timeout(10 * time.Second).MustNavigate(request.FirstPage)
 			page.WaitNavigation(proto.PageLifecycleEventNameNetworkIdle)
+			page.MustWaitLoad()
 		})
 
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -633,6 +634,8 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 		var detectedElement *rod.Element
 		var selectorText string
 		var resultContent types.ResultContent
+
+		var selectorStringReplacer = strings.NewReplacer(`"`, `'`, `[`, ``, `]`, ``)
 
 		currentItemIndex := paginateIndex - (request.ItemsOnPage * int(math.Floor(float64(paginateIndex)/float64(request.ItemsOnPage))))
 
@@ -731,10 +734,10 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 		if errors.Is(fieldError, context.DeadlineExceeded) {
 			log.Printf(red("[ Engine ] Selector %s not found"), selectorText)
-			globalErrors = append(globalErrors, fmt.Sprintf(`# [ Engine ] Failed to find selector %s`, selectorText))
+			globalErrors = append(globalErrors, fmt.Sprintf(`Failed to find selector %s for %s`, selectorStringReplacer.Replace(selectorText), fieldName))
 		} else if fieldError != nil {
 			log.Printf(red("[ Engine ] %v"), fieldError)
-			globalErrors = append(globalErrors, fmt.Sprintf(`# [ Engine ] Failed to find selector %s`, selectorText))
+			globalErrors = append(globalErrors, fmt.Sprintf(`Failed to find selector %s for %s`, selectorStringReplacer.Replace(selectorText), fieldName))
 		}
 
 		// Process without Element
@@ -744,17 +747,26 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			var sleepTime int = int(flowData.Delay)
 			time.Sleep(time.Second * time.Duration(sleepTime))
 
-		} else if flowData.WaitFor != "" {
+		} else if flowData.WaitFor.Selector != "" {
+
+			var waitTimeOut = 10 * time.Second
+
+			if flowData.WaitFor.Delay > 0 {
+				var sleepTime int = int(flowData.WaitFor.Delay)
+				waitTimeOut = time.Second * time.Duration(sleepTime)
+			}
 
 			err := rod.Try(func() {
-				page.Timeout(10 * time.Second).MustElement(flowData.WaitFor)
+				page.Timeout(waitTimeOut).MustElement(flowData.WaitFor.Selector)
 				page.MustWaitLoad()
 			})
 
 			if errors.Is(err, context.DeadlineExceeded) {
-				log.Printf(red("[ Engine ] Failed to wait for element %s, due to context deadline exceeded"), flowData.WaitFor)
+				log.Printf(red("[ Engine ] Failed to wait for selector %s, due to context deadline exceeded"), flowData.WaitFor.Selector)
+				globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(flowData.WaitFor.Selector)))
 			} else if err != nil {
-				log.Printf(red("[ Engine ] Failed to wait for element %s, due to %v"), flowData.WaitFor, err)
+				log.Printf(red("[ Engine ] Failed to wait for selector %s, due to %v"), flowData.WaitFor.Selector, err)
+				globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(flowData.WaitFor.Selector)))
 			}
 
 		} else if flowData.Scroll > 0 {
@@ -772,6 +784,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				err := rod.Try(func() {
 					page.Timeout(10 * time.Second).MustNavigate(temporaryNavigateUrl)
 					page.WaitNavigation(proto.PageLifecycleEventNameNetworkIdle)
+					page.MustWaitLoad()
 				})
 
 				if errors.Is(err, context.DeadlineExceeded) {
@@ -787,6 +800,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 			page.MustNavigateBack()
 			page.WaitNavigation(proto.PageLifecycleEventNameNetworkIdle)
+			page.MustWaitLoad()
 
 		}
 
@@ -846,7 +860,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 					if captureError != nil {
 						log.Printf(red("%s Failed to capture missing element %s"), "[ Engine ]", flowData.Capture.Selector)
-						globalErrors = append(globalErrors, fmt.Sprintf(`# [ Engine ] Failed to capture missing element %s`, flowData.Capture.Selector))
+						globalErrors = append(globalErrors, fmt.Sprintf(`Failed to capture missing selector %s for %s`, selectorStringReplacer.Replace(flowData.Capture.Selector), flowData.Capture.Name))
 					}
 				}
 
@@ -881,6 +895,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			} else if flowData.Element.Check != "" || flowData.Element.Radio != "" || flowData.Element.Action == "Click" {
 
 				detectedElement.MustClick()
+				page.MustWaitLoad()
 
 				// } else if flowData.Element.Upload != "" {
 
