@@ -233,7 +233,7 @@ func HandleResponse(w http.ResponseWriter, data types.Result, pageId string) {
 
 	jsonTable, _ := json.Marshal(data)
 	jsonEncoded := Unescape(jsonTable)
-	jsonReplacer := strings.NewReplacer(`"{`, `{`, `}"`, `}`, `"[`, `[`, `]"`, `]`, `$\"`, `"`, `$\n`, "\n")
+	jsonReplacer := strings.NewReplacer(`"{`, `{`, `}"`, `}`, `"[`, `[`, `]"`, `]`, `$\"`, `"`, `$\n`, "\n", `\!`, `!`, `\@`, `@`, `\#`, `#`, `\$`, `$`, `\%`, `%`, `\^`, `^`, `\&`, `&`, `\*`, `*`, `\(`, `(`, `\)`, `)`, `\-`, `-`, `\+`, `+`, `\_`, `_`)
 	jsonResult := jsonReplacer.Replace(jsonEncoded)
 
 	w.Write([]byte(jsonResult))
