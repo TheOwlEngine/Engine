@@ -307,15 +307,6 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 		renderer.Close()
 
-		for _, name := range matches {
-			errorRemoveFile := os.Remove(name)
-
-			if errorRemoveFile != nil {
-				log.Printf(red("[ Engine ] %v\n"), errorRemoveFile)
-				globalErrors = append(globalErrors, `Failed to remove rendered motion image`)
-			}
-		}
-
 		compressedPath := strings.ReplaceAll(videoPath, ".mp4", "-compressed.mp4")
 
 		cmd := exec.Command("ffmpeg", "-i", videoPath, "-vcodec", "h264", "-acodec", "mp2", compressedPath)
@@ -328,6 +319,17 @@ func HandleRenderVideo(name string, pageId string) (string, string) {
 
 		if len(stdout) > 0 {
 			log.Printf("%s %v\n", yellow("[ Engine ]"), stdout)
+		}
+
+		time.Sleep(2 * time.Second)
+
+		for _, name := range matches {
+			errorRemoveFile := os.Remove(name)
+
+			if errorRemoveFile != nil {
+				log.Printf(red("[ Engine ] %v\n"), errorRemoveFile)
+				globalErrors = append(globalErrors, `Failed to remove rendered motion image`)
+			}
 		}
 
 		errorRemoveTemporary := os.Remove(videoPath)
@@ -478,8 +480,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					page.MustClose()
 				}
 
-				// Delay two second
-				time.Sleep(1 * time.Second)
+				time.Sleep(2 * time.Second)
 
 				if request.Record {
 					_, videoPath := HandleRenderVideo(request.Name, pageId)
