@@ -687,6 +687,10 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			fieldName = flowData.Table.Name
 		}
 
+		if flowData.WaitFor.Selector != "" {
+			selectorText = flowData.Table.Selector
+		}
+
 		if temporaryWrapperElement != "" {
 			selectorText = temporaryWrapperElement + " " + selectorText
 		}
@@ -758,16 +762,16 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			}
 
 			err := rod.Try(func() {
-				page.Timeout(waitTimeOut).MustElement(flowData.WaitFor.Selector)
+				page.Timeout(waitTimeOut).MustElement(selectorText)
 				page.MustWaitLoad()
 			})
 
 			if errors.Is(err, context.DeadlineExceeded) {
-				log.Printf(red("[ Engine ] Failed to wait for selector %s, due to context deadline exceeded"), flowData.WaitFor.Selector)
-				globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(flowData.WaitFor.Selector)))
+				log.Printf(red("[ Engine ] Failed to wait for selector %s, due to context deadline exceeded"), selectorText)
+				globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(selectorText)))
 			} else if err != nil {
-				log.Printf(red("[ Engine ] Failed to wait for selector %s, due to %v"), flowData.WaitFor.Selector, err)
-				globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(flowData.WaitFor.Selector)))
+				log.Printf(red("[ Engine ] Failed to wait for selector %s, due to %v"), selectorText, err)
+				globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(selectorText)))
 			}
 
 		} else if flowData.Scroll > 0 {
