@@ -436,6 +436,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 				}
 
 				paginateLimit := 1
+				itemsOnPageLimit := 1
 
 				if request.Paginate && request.PaginateLimit > 0 {
 					paginateLimit = request.PaginateLimit
@@ -445,23 +446,41 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					paginateLimit = request.InfiniteScroll
 				}
 
+				if request.ItemsOnPage > 0 {
+					itemsOnPageLimit = request.ItemsOnPage
+				}
+
 				temporaryScraperResult := make([]types.ResultPage, 0, paginateLimit)
 				recordResult := ""
 
-				environmentRepetition := os.Getenv(`MAX_PAGINATE_LIMIT`)
+				repetitionEnv := os.Getenv(`MAX_PAGINATE_LIMIT`)
 
-				if environmentRepetition != "" {
-					maximumRepetition, _ := strconv.Atoi(environmentRepetition)
+				if repetitionEnv != "" {
+					maximumRepetition, _ := strconv.Atoi(repetitionEnv)
 
 					if paginateLimit > maximumRepetition {
 						log.Printf("%s Limit parameter more than ENV want %d have %d", yellow("[ Engine ]"), maximumRepetition, paginateLimit)
+						globalErrors = append(globalErrors, fmt.Sprintf(`Maximum pagination only %d times, but requested %d times`, maximumRepetition, paginateLimit))
 
 						paginateLimit = maximumRepetition
 					}
 				}
 
-				if request.ItemsOnPage > 0 {
-					paginateLimit = request.ItemsOnPage * paginateLimit
+				itemsOnPageEnv := os.Getenv(`MAX_ITEMS_ON_PAGE`)
+
+				if itemsOnPageEnv != "" {
+					maximumRepetition, _ := strconv.Atoi(itemsOnPageEnv)
+
+					if itemsOnPageLimit > maximumRepetition {
+						log.Printf("%s Limit items on page parameter more than ENV want %d have %d", yellow("[ Engine ]"), maximumRepetition, itemsOnPageLimit)
+						globalErrors = append(globalErrors, fmt.Sprintf(`Maximum items on page only %d items, but requested %d items`, maximumRepetition, itemsOnPageLimit))
+
+						itemsOnPageLimit = maximumRepetition
+					}
+				}
+
+				if itemsOnPageLimit > 0 {
+					paginateLimit = itemsOnPageLimit * paginateLimit
 				}
 
 				parsedUrl, errorParseUrl := url.Parse(request.FirstPage)
@@ -473,7 +492,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				temporaryDomainName = parsedUrl.Scheme + "://" + parsedUrl.Hostname()
 
-				isFinish, scraperResult := HandleRepeatLoop(request, request.Flow, page, pageId, 0, paginateLimit, temporaryScraperResult, diskUsage)
+				isFinish, scraperResult := HandleRepeatLoop(request, request.Flow, page, pageId, 0, paginateLimit, itemsOnPageLimit, temporaryScraperResult, diskUsage)
 
 				if isFinish {
 					proto.PageStopScreencast{}.Call(page)
@@ -515,7 +534,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					Duration:       time.Since(start) / 1000000, // milisecond,
 					Engine:         string(request.Engine),
 					FirstPage:      string(request.FirstPage),
-					ItemsOnPage:    request.ItemsOnPage,
+					ItemsOnPage:    itemsOnPageLimit,
 					Infinite:       request.Infinite,
 					InfiniteScroll: request.InfiniteScroll,
 					Paginate:       request.Paginate,
@@ -562,7 +581,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, pageId string, paginateIndex int, paginateLimit int, scraperResult []types.ResultPage, diskUsage map[string]float64) (bool, []types.ResultPage) {
+func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, pageId string, paginateIndex int, paginateLimit int, itemsOnPageLimit int, scraperResult []types.ResultPage, diskUsage map[string]float64) (bool, []types.ResultPage) {
 	red := color.New(color.FgRed).SprintFunc()
 
 	pageStart := time.Now()
@@ -582,8 +601,8 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 		}
 	}
 
-	if request.ItemsOnPage > 0 && paginateLimit > 0 {
-		if paginateIndex >= request.ItemsOnPage && paginateIndex%request.ItemsOnPage == 0 && paginateIndex < paginateLimit {
+	if itemsOnPageLimit > 0 && paginateLimit > 0 {
+		if paginateIndex >= itemsOnPageLimit && paginateIndex%itemsOnPageLimit == 0 && paginateIndex < paginateLimit {
 			if request.PaginateButton != "" {
 				page.MustElement(request.PaginateButton).MustClick()
 			}
@@ -600,7 +619,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 
 	if paginateIndex < paginateLimit {
 
-		isFinish, pageContent := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, paginateIndex, temporaryContents, diskUsage)
+		isFinish, pageContent := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, paginateIndex, itemsOnPageLimit, temporaryContents, diskUsage)
 
 		if isFinish {
 			scraperResult = append(scraperResult, types.ResultPage{
@@ -611,7 +630,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 				Content:  pageContent,
 			})
 
-			return HandleRepeatLoop(request, request.Flow, page, pageId, paginateIndex+1, paginateLimit, scraperResult, diskUsage)
+			return HandleRepeatLoop(request, request.Flow, page, pageId, paginateIndex+1, paginateLimit, itemsOnPageLimit, scraperResult, diskUsage)
 		} else {
 			return false, scraperResult
 		}
@@ -624,7 +643,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 	return false, scraperResult
 }
 
-func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, paginateIndex int, pageContent []types.ResultContent, diskUsage map[string]float64) (bool, []types.ResultContent) {
+func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, paginateIndex int, itemsOnPageLimit int, pageContent []types.ResultContent, diskUsage map[string]float64) (bool, []types.ResultContent) {
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 
@@ -638,7 +657,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 		var selectorStringReplacer = strings.NewReplacer(`"`, `'`, `[`, ``, `]`, ``)
 
-		currentItemIndex := paginateIndex - (request.ItemsOnPage * int(math.Floor(float64(paginateIndex)/float64(request.ItemsOnPage))))
+		currentItemIndex := paginateIndex - (itemsOnPageLimit * int(math.Floor(float64(paginateIndex)/float64(itemsOnPageLimit))))
 
 		if flowData.Wrapper != "" {
 			temporaryWrapperElement = flowData.Wrapper
@@ -752,28 +771,6 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			var sleepTime int = int(flowData.Delay)
 			time.Sleep(time.Second * time.Duration(sleepTime))
 
-		} else if flowData.WaitFor.Selector != "" {
-
-			var waitTimeOut = 10 * time.Second
-
-			if flowData.WaitFor.Delay > 0 {
-				var sleepTime int = int(flowData.WaitFor.Delay)
-				waitTimeOut = time.Second * time.Duration(sleepTime)
-			}
-
-			err := rod.Try(func() {
-				page.Timeout(waitTimeOut).MustElement(selectorText)
-				page.MustWaitLoad()
-			})
-
-			if errors.Is(err, context.DeadlineExceeded) {
-				log.Printf(red("[ Engine ] Failed to wait for selector %s, due to context deadline exceeded"), selectorText)
-				globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(selectorText)))
-			} else if err != nil {
-				log.Printf(red("[ Engine ] Failed to wait for selector %s, due to %v"), selectorText, err)
-				globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(selectorText)))
-			}
-
 		} else if flowData.Scroll > 0 {
 
 			page.Mouse.Scroll(0, float64(*page.MustGetWindow().Height), flowData.Scroll)
@@ -813,7 +810,29 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 		if detectedElement != nil {
 
-			if flowData.Element.Write != "" {
+			if flowData.WaitFor.Selector != "" {
+				log.Println(flowData.WaitFor.Selector, selectorText)
+				var waitTimeOut = 10 * time.Second
+
+				if flowData.WaitFor.Delay > 0 {
+					var sleepTime int = int(flowData.WaitFor.Delay)
+					waitTimeOut = time.Second * time.Duration(sleepTime)
+				}
+
+				err := rod.Try(func() {
+					page.Timeout(waitTimeOut).MustElement(selectorText)
+					page.MustWaitLoad()
+				})
+
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Printf(red("[ Engine ] Failed to wait for selector %s, due to context deadline exceeded"), selectorText)
+					globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(selectorText)))
+				} else if err != nil {
+					log.Printf(red("[ Engine ] Failed to wait for selector %s, due to %v"), selectorText, err)
+					globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(selectorText)))
+				}
+
+			} else if flowData.Element.Write != "" {
 
 				if strings.Contains(flowData.Element.Write, "$") {
 					detectedElement.MustInput(os.Getenv(strings.ReplaceAll(flowData.Element.Write, "$", "")))
@@ -1162,7 +1181,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			pageContent = append(pageContent, resultContent)
 		}
 
-		return HandleFlowLoop(request, flow, current+1, total, page, pageId, paginateIndex, pageContent, diskUsage)
+		return HandleFlowLoop(request, flow, current+1, total, page, pageId, paginateIndex, itemsOnPageLimit, pageContent, diskUsage)
 	}
 
 	if current == total {
