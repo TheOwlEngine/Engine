@@ -1,29 +1,29 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"engine/types"
-	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"math"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strings"
-	"time"
-
 	"log"
+
 	"net"
 	"net/http"
 	"net/url"
+
+	"context"
+	"errors"
 	"os"
-	"os/exec"
 	"os/signal"
-	"strconv"
 	"syscall"
+
+	"math"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
+	"encoding/json"
+	"engine/lib"
+	"engine/types"
 
 	"github.com/fatih/color"
 	"github.com/go-rod/rod"
@@ -33,10 +33,8 @@ import (
 	"github.com/go-rod/rod/lib/utils"
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
-	"github.com/icza/mjpeg"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
-	"github.com/ysmood/gson"
 	"golang.org/x/net/html"
 )
 
@@ -64,6 +62,9 @@ var temporaryInfiniteScroll int
 
 var globalErrors []string
 
+var replacerPath *strings.Replacer
+var replacerSelector *strings.Replacer
+
 func main() {
 	godotenv.Load(".env")
 
@@ -82,6 +83,9 @@ func main() {
 	videoDirectory = resourcesDirectory + "/videos/"
 	logsDirectory = rootDirectory + "/logs/"
 
+	replacerPath = strings.NewReplacer(rootDirectory, "", "//", "/")
+	replacerSelector = strings.NewReplacer(`"`, `'`, `[`, ``, `]`, ``)
+
 	// log to custom file
 	currentTime := time.Now()
 	currentDate := fmt.Sprintf("%d-%02d-%02d", currentTime.Year(), currentTime.Month(), currentTime.Day())
@@ -92,7 +96,6 @@ func main() {
 	multiLogger := io.MultiWriter(logFile, os.Stdout)
 
 	if logError != nil {
-		log.Panic(logError)
 		panic(logError)
 	}
 
@@ -140,37 +143,40 @@ func main() {
 				log.Printf("%s Using debug mode", yellow("[ Engine ]"))
 			}
 
-			var userLauncher string
+			var customLauncher *launcher.Launcher
 
 			if useProxy {
-				userLauncher = launcher.New().
+				customLauncher = launcher.New().
 					Proxy(engineProxy).          // add a flag, here we set a http proxy
 					Delete("use-mock-keychain"). // delete flag mock keychain
 					NoSandbox(true).             // disable chromium sandbox
 					Headless(!engineDebug).      // set false to debug
 					Set(`--enable-usermedia-screen-capturing`).
 					Set(`--allow-http-screen-capture`).
-					Set(`--disable-infobars`).
-					MustLaunch() // launch the browser
+					Set(`--disable-infobars`)
 			} else {
-				userLauncher = launcher.New().
+				customLauncher = launcher.New().
 					NoSandbox(true).        // disable chromium sandbox
 					Headless(!engineDebug). // set false to debug
 					Set(`--enable-usermedia-screen-capturing`).
 					Set(`--allow-http-screen-capture`).
-					Set(`--disable-infobars`).
-					MustLaunch() // launch the browser
+					Set(`--disable-infobars`)
 			}
 
+			defer customLauncher.Cleanup()
+
 			log.Printf("%s Starting browser", yellow("[ Engine ]"))
-			engineBrowser = *rod.New().ControlURL(userLauncher).MustConnect()
+
+			userLauncher := customLauncher.MustLaunch() // launch the browser
+
+			engineBrowser = *rod.New().ControlURL(userLauncher).MustConnect().MustIncognito()
 
 			// Start with blank page to initialize browser
 			log.Printf("%s Create a blank page", yellow("[ Engine ]"))
 			engineBrowser.MustPage("about:blank")
 
 			log.Printf("%s Ready to handle scraper\n\n", yellow("[ Engine ]"))
-			HandleHTTPRequest()
+			Server()
 
 			return nil
 		},
@@ -179,18 +185,18 @@ func main() {
 	errorCliApp := app.Run(os.Args)
 
 	if errorCliApp != nil {
-		log.Fatal(errorCliApp)
+		panic(errorCliApp)
 	}
 }
 
-func HandleHTTPRequest() {
+func Server() {
 	red := color.New(color.FgRed).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
 
 	http.Handle("/resources/", http.StripPrefix("/resources/", http.FileServer(http.Dir(resourcesDirectory))))
 
-	http.HandleFunc("/", HandleMultiPages)
-	http.HandleFunc("/favicon.ico", Noop)
+	http.HandleFunc("/", Pages)
+	http.HandleFunc("/favicon.ico", lib.Noop)
 
 	listener, errorListener := net.Listen("tcp4", ":"+enginePort)
 
@@ -210,153 +216,15 @@ func HandleHTTPRequest() {
 
 	go func() {
 		<-sign
-		engineBrowser.MustClose()
+		defer engineBrowser.MustClose()
 		os.Exit(1)
 	}()
 
 	panic(http.Serve(listener, nil))
 }
 
-func HandleResponse(w http.ResponseWriter, data types.Result, pageId string) {
-	yellow := color.New(color.FgYellow).SprintFunc()
-
-	if pageId != "" {
-		log.Printf("%s Sending result", yellow("[ Engine ]"))
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	for _, page := range data.Result {
-		for index := range page.Content {
-			if strings.Contains(page.Content[index].Content, `[`) {
-				stringReplacer := strings.NewReplacer(`"`, `$"`, "\n", "$\n")
-				page.Content[index].Content = stringReplacer.Replace(page.Content[index].Content)
-			}
-		}
-	}
-
-	jsonTable, _ := json.Marshal(data)
-	jsonEncoded := Unescape(jsonTable)
-	jsonReplacer := strings.NewReplacer(`"{`, `{`, `}"`, `}`, `"[`, `[`, `]"`, `]`, `$\"`, `"`, `$\n`, "\n", `\!`, `!`, `\@`, `@`, `\#`, `#`, `\$`, `$`, `\%`, `%`, `\^`, `^`, `\&`, `&`, `\*`, `*`, `\(`, `(`, `\)`, `)`, `\-`, `-`, `\+`, `+`, `\_`, `_`)
-	jsonResult := jsonReplacer.Replace(jsonEncoded)
-
-	w.Write([]byte(jsonResult))
-}
-
-func Noop(w http.ResponseWriter, r *http.Request) {}
-
-func Unescape(json json.RawMessage) string {
-	result, errorUnquote := strconv.Unquote(strings.Replace(strconv.Quote(string(json)), `\\u`, `\u`, -1))
-
-	if errorUnquote != nil {
-		return ""
-	}
-
-	return result
-}
-
-func Contains(sl []string, name string) bool {
-	for _, value := range sl {
-		if value == name {
-			return true
-		}
-	}
-
-	return false
-}
-
-func setupResponse(w *http.ResponseWriter, req *http.Request) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-}
-
-func HandleRenderVideo(name string, pageId string) (string, string) {
-	red := color.New(color.FgRed).SprintFunc()
-	yellow := color.New(color.FgYellow).SprintFunc()
-
-	log.Printf("%s Render recorded video", yellow("[ Engine ]"))
-
-	slugName := slug.Make(name)
-	videoName := slugName + "-" + pageId + ".mp4"
-	videoPath := videoDirectory + videoName
-
-	go func() {
-		renderer, errorMjpeg := mjpeg.New(videoPath, int32(1440), int32(900), 6)
-
-		if errorMjpeg != nil {
-			log.Printf(red("[ Engine ] %v\n"), errorMjpeg)
-			globalErrors = append(globalErrors, `Failed to create temporary motion image`)
-		}
-
-		matches, errorGlobFile := filepath.Glob(videoDirectory + pageId + "-*-frame.jpeg")
-
-		if errorGlobFile != nil {
-			log.Printf(red("[ Engine ] %v\n"), errorGlobFile)
-			globalErrors = append(globalErrors, `Failed to list generated motion image`)
-		}
-
-		sort.Strings(matches)
-
-		for _, name := range matches {
-			data, errorReadFile := ioutil.ReadFile(name)
-
-			if errorReadFile != nil {
-				log.Printf(red("[ Engine ] %v\n"), errorReadFile)
-				globalErrors = append(globalErrors, `Failed to read rendered motion image`)
-			}
-
-			renderer.AddFrame(data)
-		}
-
-		renderer.Close()
-
-		compressedPath := strings.ReplaceAll(videoPath, ".mp4", "-compressed.mp4")
-
-		cmd := exec.Command("ffmpeg", "-i", videoPath, "-vcodec", "h264", "-acodec", "mp2", compressedPath)
-		stdout, errorFFmpeg := cmd.Output()
-
-		if errorFFmpeg != nil {
-			log.Printf(red("[ Engine ] %v\n"), errorFFmpeg)
-			globalErrors = append(globalErrors, `Failed to compress temporary motion image`)
-		}
-
-		if len(stdout) > 0 {
-			log.Printf("%s %v\n", yellow("[ Engine ]"), stdout)
-		}
-
-		time.Sleep(2 * time.Second)
-
-		for _, name := range matches {
-			errorRemoveFile := os.Remove(name)
-
-			if errorRemoveFile != nil {
-				log.Printf(red("[ Engine ] %v\n"), errorRemoveFile)
-				globalErrors = append(globalErrors, `Failed to remove rendered motion image`)
-			}
-		}
-
-		errorRemoveTemporary := os.Remove(videoPath)
-
-		if errorRemoveTemporary != nil {
-			log.Printf(red("[ Engine ] %v\n"), errorRemoveTemporary)
-			globalErrors = append(globalErrors, `Failed to remove temporary motion image`)
-		}
-
-		errorRemoveCompressed := os.Rename(compressedPath, videoPath)
-
-		if errorRemoveCompressed != nil {
-			log.Printf(red("[ Engine ] %v\n"), errorRemoveCompressed)
-			globalErrors = append(globalErrors, `Failed to remove compressed motion image`)
-		}
-	}()
-
-	return videoName, videoPath
-}
-
-func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
-	setupResponse(&w, r)
+func Pages(w http.ResponseWriter, r *http.Request) {
+	lib.Cors(&w, r)
 
 	if (*r).Method == "OPTIONS" {
 		return
@@ -497,39 +365,12 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 				temporaryDomainName = parsedUrl.Scheme + "://" + parsedUrl.Hostname()
 
-				isFinish, scraperResult := HandleRepeatLoop(request, request.Flow, page, pageId, 0, paginateLimit, itemsOnPageLimit, temporaryScraperResult, diskUsage)
-
-				if isFinish {
-					proto.PageStopScreencast{}.Call(page)
-					page.MustClose()
-				}
-
-				time.Sleep(2 * time.Second)
-
-				if request.Record {
-					_, videoPath := HandleRenderVideo(request.Name, pageId)
-
-					pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
-					pathReplaced := pathReplacer.Replace(string(videoPath))
-
-					recordResult = pathReplaced
-
-					time.Sleep(1 * time.Second)
-
-					fileSize, errorFileSize := os.Stat(rootDirectory + pathReplaced)
-
-					if errorFileSize != nil {
-						log.Printf(red("[ Engine ] %v"), errorFileSize)
-						globalErrors = append(globalErrors, `Failed to read recorded video size`)
-					} else {
-						diskUsage["videos"] += float64(fileSize.Size())
-					}
-				}
+				isFinish, scraperResult := Flow(request, request.Flow, page, pageId, 0, paginateLimit, itemsOnPageLimit, temporaryScraperResult, diskUsage)
 
 				slugName := slug.Make(request.Name)
 				sluggableName := slugName + "-" + pageId
 
-				resultJson := types.Result{
+				var resultJson = types.Result{
 					Id:             pageId,
 					Proxy:          proxyAddress,
 					Code:           200,
@@ -545,20 +386,56 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 					Paginate:       request.Paginate,
 					PaginateLimit:  request.PaginateLimit,
 					Record:         request.Record,
-					Usage: types.ResultUsage{
-						Bandwidth: bandwidthUsage,
-						Disk:      diskUsage,
-					},
-					Errors: globalErrors,
 				}
 
-				if len(scraperResult) > 0 {
-					resultJson.Result = scraperResult
+				if isFinish {
+					// Stop screencast frame
+					proto.PageStopScreencast{}.Call(page)
+
+					// Remove all session, cookie, and cache from closed tab
+					proto.NetworkClearBrowserCache{}.Call(page)
+					proto.NetworkClearBrowserCookies{}.Call(page)
+					proto.PageDeleteCookie{}.Call(page)
+					proto.StorageClearCookies{}.Call(page)
+
+					defer page.MustClose()
+
+					if request.Record {
+						_, videoPath, errors := lib.RenderVideo(request.Name, pageId, videoDirectory, globalErrors)
+
+						globalErrors = errors
+
+						recordResult = replacerPath.Replace(string(videoPath))
+
+						if recordResult != "" {
+							fileSize, errorFileSize := os.Stat(rootDirectory + recordResult)
+
+							if errorFileSize != nil {
+								log.Printf(red("[ Engine ] %v"), errorFileSize)
+								globalErrors = append(globalErrors, `Failed to read recorded video size`)
+							} else {
+								diskUsage["videos"] += float64(fileSize.Size())
+							}
+						}
+					}
+
+					if len(scraperResult) > 0 {
+						resultJson.Result = scraperResult
+					}
+
+					if recordResult != "" {
+						resultJson.Recording = engineProxyURL + recordResult
+					}
+				} else {
+					resultJson.Code = 500
+					resultJson.Message = "Failed to run Flow due some error on our Engine"
 				}
 
-				if recordResult != "" {
-					resultJson.Recording = engineProxyURL + recordResult
+				resultJson.Usage = types.ResultUsage{
+					Bandwidth: bandwidthUsage,
+					Disk:      diskUsage,
 				}
+				resultJson.Errors = globalErrors
 
 				rootChannel <- resultJson
 			} else {
@@ -573,7 +450,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 
 		result := <-rootChannel
 
-		HandleResponse(w, result, pageId)
+		lib.Response(w, result, pageId)
 
 		log.Printf("%s Flow closed\n\n", yellow("[ Engine ]"))
 	default:
@@ -582,11 +459,11 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 			Message: "Method not allowed for this request",
 		}
 
-		HandleResponse(w, resultJson, "")
+		lib.Response(w, resultJson, "")
 	}
 }
 
-func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, pageId string, paginateIndex int, paginateLimit int, itemsOnPageLimit int, scraperResult []types.ResultPage, diskUsage map[string]float64) (bool, []types.ResultPage) {
+func Flow(request types.Config, flow []types.Flow, page *rod.Page, pageId string, paginateIndex int, paginateLimit int, itemsOnPageLimit int, scraperResult []types.ResultPage, diskUsage map[string]float64) (bool, []types.ResultPage) {
 	red := color.New(color.FgRed).SprintFunc()
 
 	pageStart := time.Now()
@@ -601,8 +478,10 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 
 		if errors.Is(err, context.DeadlineExceeded) {
 			log.Printf(red("[ Engine ] Failed to navigate to %s, due to context deadline exceeded"), request.FirstPage)
+			globalErrors = append(globalErrors, fmt.Sprintf(`Failed to navigate to %s, due to context deadline exceeded`, request.FirstPage))
 		} else if err != nil {
 			log.Printf(red("[ Engine ] Failed to navigate to %s, due to %v"), request.FirstPage, err)
+			globalErrors = append(globalErrors, fmt.Sprintf(`Failed to navigate to %s, due to error on requested page`, request.FirstPage))
 		}
 	}
 
@@ -624,7 +503,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 
 	if paginateIndex < paginateLimit {
 
-		isFinish, pageContent := HandleFlowLoop(request, request.Flow, 0, len(request.Flow), page, pageId, paginateIndex, itemsOnPageLimit, temporaryContents, diskUsage)
+		isFinish, pageContent := Parse(request, request.Flow, 0, len(request.Flow), page, pageId, paginateIndex, itemsOnPageLimit, temporaryContents, diskUsage)
 
 		if isFinish {
 			scraperResult = append(scraperResult, types.ResultPage{
@@ -635,7 +514,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 				Content:  pageContent,
 			})
 
-			return HandleRepeatLoop(request, request.Flow, page, pageId, paginateIndex+1, paginateLimit, itemsOnPageLimit, scraperResult, diskUsage)
+			return Flow(request, request.Flow, page, pageId, paginateIndex+1, paginateLimit, itemsOnPageLimit, scraperResult, diskUsage)
 		} else {
 			return false, scraperResult
 		}
@@ -648,7 +527,7 @@ func HandleRepeatLoop(request types.Config, flow []types.Flow, page *rod.Page, p
 	return false, scraperResult
 }
 
-func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, paginateIndex int, itemsOnPageLimit int, pageContent []types.ResultContent, diskUsage map[string]float64) (bool, []types.ResultContent) {
+func Parse(request types.Config, flow []types.Flow, current int, total int, page *rod.Page, pageId string, paginateIndex int, itemsOnPageLimit int, pageContent []types.ResultContent, diskUsage map[string]float64) (bool, []types.ResultContent) {
 	red := color.New(color.FgRed).SprintFunc()
 	yellow := color.New(color.FgYellow).SprintFunc()
 
@@ -659,8 +538,6 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 		var detectedElement *rod.Element
 		var selectorText string
 		var resultContent types.ResultContent
-
-		var selectorStringReplacer = strings.NewReplacer(`"`, `'`, `[`, ``, `]`, ``)
 
 		currentItemIndex := paginateIndex - (itemsOnPageLimit * int(math.Floor(float64(paginateIndex)/float64(itemsOnPageLimit))))
 
@@ -763,10 +640,10 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 		if errors.Is(fieldError, context.DeadlineExceeded) {
 			log.Printf(red("[ Engine ] Selector %s not found"), selectorText)
-			globalErrors = append(globalErrors, fmt.Sprintf(`Failed to find selector %s for %s`, selectorStringReplacer.Replace(selectorText), fieldName))
+			globalErrors = append(globalErrors, fmt.Sprintf(`Failed to find selector %s for %s`, replacerSelector.Replace(selectorText), fieldName))
 		} else if fieldError != nil {
 			log.Printf(red("[ Engine ] %v"), fieldError)
-			globalErrors = append(globalErrors, fmt.Sprintf(`Failed to find selector %s for %s`, selectorStringReplacer.Replace(selectorText), fieldName))
+			globalErrors = append(globalErrors, fmt.Sprintf(`Failed to find selector %s for %s`, replacerSelector.Replace(selectorText), fieldName))
 		}
 
 		// Process without Element
@@ -795,9 +672,11 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				})
 
 				if errors.Is(err, context.DeadlineExceeded) {
-					log.Printf(red("[ Engine ] Failed to navigate to %s, due to context deadline exceeded"), request.FirstPage)
+					log.Printf(red("[ Engine ] Failed to navigate to %s, due to context deadline exceeded"), temporaryNavigateUrl)
+					globalErrors = append(globalErrors, fmt.Sprintf(`Failed to navigate to %s, due to context deadline exceeded`, temporaryNavigateUrl))
 				} else if err != nil {
-					log.Printf(red("[ Engine ] Failed to navigate to %s, due to %v"), request.FirstPage, err)
+					log.Printf(red("[ Engine ] Failed to navigate to %s, due to %v"), temporaryNavigateUrl, err)
+					globalErrors = append(globalErrors, fmt.Sprintf(`Failed to navigate to %s, due to error on requested page`, temporaryNavigateUrl))
 				}
 			}
 
@@ -831,10 +710,10 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Printf(red("[ Engine ] Failed to wait for selector %s, due to context deadline exceeded"), selectorText)
-					globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(selectorText)))
+					globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, replacerSelector.Replace(selectorText)))
 				} else if err != nil {
 					log.Printf(red("[ Engine ] Failed to wait for selector %s, due to %v"), selectorText, err)
-					globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, selectorStringReplacer.Replace(selectorText)))
+					globalErrors = append(globalErrors, fmt.Sprintf(`Failed to wait for selector %s`, replacerSelector.Replace(selectorText)))
 				}
 
 			} else if flowData.Element.Write != "" {
@@ -864,7 +743,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				capturePath := imagesDirectory + pageId + "-" + strconv.Itoa(paginateIndex) + "-" + flowData.Capture.Name + ".jpeg"
 				captureOptions := &proto.PageCaptureScreenshot{
 					Format:      proto.PageCaptureScreenshotFormatJpeg,
-					Quality:     gson.Int(100),
+					Quality:     lib.Int(100),
 					FromSurface: true,
 				}
 
@@ -889,12 +768,11 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 					if captureError != nil {
 						log.Printf(red("%s Failed to capture missing element %s"), "[ Engine ]", flowData.Capture.Selector)
-						globalErrors = append(globalErrors, fmt.Sprintf(`Failed to capture missing selector %s for %s`, selectorStringReplacer.Replace(flowData.Capture.Selector), flowData.Capture.Name))
+						globalErrors = append(globalErrors, fmt.Sprintf(`Failed to capture missing selector %s for %s`, replacerSelector.Replace(flowData.Capture.Selector), flowData.Capture.Name))
 					}
 				}
 
-				pathReplacer := strings.NewReplacer(rootDirectory, "", "//", "/")
-				pathReplaced := pathReplacer.Replace(string(capturePath))
+				pathReplaced := replacerPath.Replace(string(capturePath))
 				pathRelative := rootDirectory + pathReplaced
 
 				time.Sleep(1 * time.Second)
@@ -1050,7 +928,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 								temporaryTableHeader = append(temporaryTableHeader, content)
 
 								if len(flowData.Table.Fields) > 0 {
-									continueExtract = Contains(flowData.Table.Fields, content)
+									continueExtract = lib.Contains(flowData.Table.Fields, content)
 								}
 
 								if continueExtract {
@@ -1133,7 +1011,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 
 						if token == html.EndTagToken && (content == "td" || content == "th") {
 							if len(flowData.Table.Fields) > 0 {
-								continueExtract = Contains(flowData.Table.Fields, temporaryCellName)
+								continueExtract = lib.Contains(flowData.Table.Fields, temporaryCellName)
 							}
 
 							if len(tableCellContent) == 0 {
@@ -1186,7 +1064,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 			pageContent = append(pageContent, resultContent)
 		}
 
-		return HandleFlowLoop(request, flow, current+1, total, page, pageId, paginateIndex, itemsOnPageLimit, pageContent, diskUsage)
+		return Parse(request, flow, current+1, total, page, pageId, paginateIndex, itemsOnPageLimit, pageContent, diskUsage)
 	}
 
 	if current == total {

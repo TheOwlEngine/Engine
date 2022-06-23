@@ -52,8 +52,6 @@ func main() {
 
 			isFinish := fmt.Sprintf("%v", async.Await())
 
-			log.Println(isFinish)
-
 			if isFinish == "true" {
 				end := time.Now()
 				println("")
