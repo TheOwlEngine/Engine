@@ -40,8 +40,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-var owlProxyAPI string = "https://owlengine.com/api/proxy?url="
-
+var engineProxyURL string
 var engineBrowser rod.Browser
 
 var enginePort string
@@ -67,6 +66,12 @@ var globalErrors []string
 
 func main() {
 	godotenv.Load(".env")
+
+	engineProxyURL = os.Getenv("ENGINE_PROXY_URL")
+
+	if engineProxyURL == "" {
+		engineProxyURL = "https://owlengine.com/api/proxy?url="
+	}
 
 	defaultTimeout = 3 * time.Second
 
@@ -552,7 +557,7 @@ func HandleMultiPages(w http.ResponseWriter, r *http.Request) {
 				}
 
 				if recordResult != "" {
-					resultJson.Recording = owlProxyAPI + recordResult
+					resultJson.Recording = engineProxyURL + recordResult
 				}
 
 				rootChannel <- resultJson
@@ -911,7 +916,7 @@ func HandleFlowLoop(request types.Config, flow []types.Flow, current int, total 
 				resultContent.Name = flowData.Capture.Name
 
 				if fileSize > 0 {
-					resultContent.Content = owlProxyAPI + pathReplaced
+					resultContent.Content = engineProxyURL + pathReplaced
 				} else {
 					resultContent.Content = ""
 				}
