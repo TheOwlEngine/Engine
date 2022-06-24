@@ -18,77 +18,43 @@ jobs:
       with:
         go-version: 1.18
 
+    - name: Create Artefact
+      run: |
+        mkdir -p engine-artifact
+        mv flows engine-artifact/flows
+        mv logs engine-artifact/logs
+        mv resources engine-artifact/resources
+        mv LICENSE engine-artifact/LICENSE
+        mv README.md engine-artifact/README.md
+
     # Build Linux AMD64
     - name: Build Linux AMD64 CLI
-      run: env GOOS=linux GOARCH=amd64 go build -o owl ./bin/cli.go
-
-    - name: Build Linux AMD64 Server
-      run: env GOOS=linux GOARCH=amd64 go build -o server ./main.go
-
-    - name: Create Artefact Linux AMD64
       run: |
-        mkdir -p engine-${{github.ref_name}}
-        mv flows engine-${{github.ref_name}}/flows
-        mv logs engine-${{github.ref_name}}/logs
-        mv resources engine-${{github.ref_name}}/resources
-        mv LICENSE engine-${{github.ref_name}}/LICENSE
-        mv README.md engine-${{github.ref_name}}/README.md
-        mv owl engine-${{github.ref_name}}/owl
-        mv server engine-${{github.ref_name}}/server
+        env GOOS=linux GOARCH=amd64 go build -o owl ./bin/cli.go
+        env GOOS=linux GOARCH=amd64 go build -o server ./main.go
+        mv owl engine-artifact/owl
+        mv server engine-artifact/server
 
     - uses: montudor/action-zip@v1
       with:
-        args: zip -qq -r engine-linux-amd64-${{github.ref_name}}.zip engine-${{github.ref_name}}
-
-    - uses: "marvinpinto/action-automatic-releases@latest"
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: false
-        files: |
-          engine-linux-amd64-${{github.ref_name}}.zip
-
-    # Build Linux 386
-    - name: Build Linux 386 CLI
-      run: env GOOS=linux GOARCH=386 go build -o owl ./bin/cli.go
-
-    - name: Build Linux 386 Server
-      run: env GOOS=linux GOARCH=386 go build -o server ./main.go
-
-    - name: Create Artefact Linux 386
-      run: |
-        mv owl engine-${{github.ref_name}}/owl
-        mv server engine-${{github.ref_name}}/server
-
-    - uses: montudor/action-zip@v1
-      with:
-        args: zip -qq -r engine-linux-386-${{github.ref_name}}.zip engine-${{github.ref_name}}
-
-    - uses: "marvinpinto/action-automatic-releases@latest"
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: false
-        files: |
-          engine-linux-386-${{github.ref_name}}.zip
+        args: zip -qq -r engine-linux-amd64-${{github.ref_name}}.zip engine-artifact
 
     # Build Darwin AMD64
     - name: Build Darwin AMD64 CLI
-      run: env GOOS=darwin GOARCH=amd64 go build -o owl ./bin/cli.go
-
-    - name: Build Darwin AMD64 Server
-      run: env GOOS=darwin GOARCH=amd64 go build -o server ./main.go
-
-    - name: Create Artefact Darwin AMD64
       run: |
-        mv owl engine-${{github.ref_name}}/owl
-        mv server engine-${{github.ref_name}}/server
+        env GOOS=darwin GOARCH=amd64 go build -o owl ./bin/cli.go
+        env GOOS=darwin GOARCH=amd64 go build -o server ./main.go
+        mv owl engine-artifact/owl
+        mv server engine-artifact/server
 
     - uses: montudor/action-zip@v1
       with:
-        args: zip -qq -r engine-darwin-amd64-${{github.ref_name}}.zip engine-${{github.ref_name}}
+        args: zip -qq -r engine-darwin-amd64-${{github.ref_name}}.zip engine-artifact
 
-    - uses: "marvinpinto/action-automatic-releases@latest"
+    - name: Release
+      uses: anton-yurchenko/git-release@latest
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: false
-        files: |
-          engine-darwin-amd64-${{github.ref_name}}.zip
+        args: |
+            ./*.zip
