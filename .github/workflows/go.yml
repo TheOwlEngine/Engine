@@ -5,7 +5,7 @@ on: [push]
 jobs:
 
   build:
-    name: engine-linux-amd64
+    name: Build Engine Linux & Darwin
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -15,32 +15,56 @@ jobs:
       with:
         go-version: 1.18
 
-    - name: Build Engine CLI
+    # Build Linux
+    - name: Build Linux AMD 64 CLI
       run: env GOOS=linux GOARCH=amd64 go build -o owl ./bin/cli.go
 
-    - name: Build Engine Server
+    - name: Build Linux AMD 64 Server
       run: env GOOS=linux GOARCH=amd64 go build -o server ./main.go
 
     - name: Create Artefact
       run: |
-        mkdir -p engine-linux-amd64
-        mv flows engine-linux-amd64/flows
-        mv logs engine-linux-amd64/logs
-        mv resources engine-linux-amd64/resources
-        cp LICENSE engine-linux-amd64/LICENSE
-        cp README.md engine-linux-amd64/README.md
-        cp owl engine-linux-amd64/owl
-        cp server engine-linux-amd64/server
+        mkdir -p engine-artifact
+        mv flows engine-artifact/flows
+        mv logs engine-artifact/logs
+        mv resources engine-artifact/resources
+        mv LICENSE engine-artifact/LICENSE
+        mv README.md engine-artifact/README.md
+        mv owl engine-artifact/owl
+        mv server engine-artifact/server
 
     - uses: montudor/action-zip@v1
       with:
-        args: zip -qq -r engine-linux-amd64.zip engine-linux-amd64
+        args: zip -qq -r engine-linux-amd64.zip engine-artifact
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "latest"
-        title: "engine-linux-amd64"
         prerelease: false
         files: |
           engine-linux-amd64.zip
+
+    # Build Darwin
+    - name: Build Darwin AMD 64 CLI
+      run: env GOOS=darwin GOARCH=amd64 go build -o owl ./bin/cli.go
+
+    - name: Build Darwin AMD 64 Server
+      run: env GOOS=darwin GOARCH=amd64 go build -o server ./main.go
+
+    - name: Create Artefact
+      run: |
+        mv owl engine-artifact/owl
+        mv server engine-artifact/server
+
+    - uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -r engine-darwin-amd64.zip engine-artifact
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: false
+        files: |
+          engine-darwin-amd64.zip
