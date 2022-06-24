@@ -19,18 +19,12 @@ build/*
 
 # Log directory
 logs/*
+!logs/index.html
 
 # Resources directory
-resources/images/*
-resources/json/*
-resources/videos/*
-
-# Keep some files
-!build/.gitkeep
-!logs/.gitkeep
-!resources/images/index.html
-!resources/json/index.html
-!resources/videos/index.html
+resources/**
+!resources/index.html
+!resources/**/index.html
 
 # Env
 .env
