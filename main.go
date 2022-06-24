@@ -407,6 +407,8 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 
 						recordResult = replacerPath.Replace(string(videoPath))
 
+						time.Sleep(1 * time.Second)
+
 						if recordResult != "" {
 							fileSize, errorFileSize := os.Stat(rootDirectory + recordResult)
 
