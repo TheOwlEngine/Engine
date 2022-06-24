@@ -1,4 +1,4 @@
-name: Release Engine
+name: Engine Build & Release
 
 on: [push]
 
@@ -15,14 +15,14 @@ jobs:
       with:
         go-version: 1.18
 
-    # Build Linux
-    - name: Build Linux AMD 64 CLI
+    # Build Linux AMD64
+    - name: Build Linux AMD64 CLI
       run: env GOOS=linux GOARCH=amd64 go build -o owl ./bin/cli.go
 
-    - name: Build Linux AMD 64 Server
+    - name: Build Linux AMD64 Server
       run: env GOOS=linux GOARCH=amd64 go build -o server ./main.go
 
-    - name: Create Artefact
+    - name: Create Artefact Linux AMD64
       run: |
         mkdir -p engine-artifact
         mv flows engine-artifact/flows
@@ -40,19 +40,43 @@ jobs:
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
+        automatic_release_tag: "engine-linux-amd64"
         prerelease: false
         files: |
           engine-linux-amd64.zip
 
-    # Build Darwin
-    - name: Build Darwin AMD 64 CLI
+    # Build Linux 386
+    - name: Build Linux 386 CLI
+      run: env GOOS=linux GOARCH=386 go build -o owl ./bin/cli.go
+
+    - name: Build Linux 386 Server
+      run: env GOOS=linux GOARCH=386 go build -o server ./main.go
+
+    - name: Create Artefact Linux 386
+      run: |
+        mv owl engine-artifact/owl
+        mv server engine-artifact/server
+
+    - uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -r engine-linux-386.zip engine-artifact
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "engine-linux-386"
+        prerelease: false
+        files: |
+          engine-linux-386.zip
+
+    # Build Darwin AMD64
+    - name: Build Darwin AMD64 CLI
       run: env GOOS=darwin GOARCH=amd64 go build -o owl ./bin/cli.go
 
-    - name: Build Darwin AMD 64 Server
+    - name: Build Darwin AMD64 Server
       run: env GOOS=darwin GOARCH=amd64 go build -o server ./main.go
 
-    - name: Create Artefact
+    - name: Create Artefact Darwin AMD64
       run: |
         mv owl engine-artifact/owl
         mv server engine-artifact/server
@@ -64,7 +88,7 @@ jobs:
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
+        automatic_release_tag: "engine-darwin-amd64"
         prerelease: false
         files: |
           engine-darwin-amd64.zip
