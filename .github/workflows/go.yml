@@ -43,7 +43,6 @@ jobs:
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "engine-linux-amd64-${{github.ref_name}}"
         prerelease: false
         files: |
           engine-linux-amd64-${{github.ref_name}}.zip
@@ -67,7 +66,6 @@ jobs:
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "engine-linux-386-${{github.ref_name}}"
         prerelease: false
         files: |
           engine-linux-386-${{github.ref_name}}.zip
@@ -91,7 +89,6 @@ jobs:
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "engine-darwin-amd64-${{github.ref_name}}"
         prerelease: false
         files: |
           engine-darwin-amd64-${{github.ref_name}}.zip
