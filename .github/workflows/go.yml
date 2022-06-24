@@ -20,21 +20,3 @@ jobs:
 
     - name: Build Engine Server
       run: env GOOS=linux GOARCH=amd64 go build -o server ./main.go
-
-    - name: Copy Flows
-      uses: canastro/copy-file-action@master
-      with:
-        source: "flows"
-        target: "flows"
-
-    - name: Copy Logs
-      uses: canastro/copy-file-action@master
-      with:
-        source: "logs"
-        target: "logs"
-
-    - name: Copy Resources
-      uses: canastro/copy-file-action@master
-      with:
-        source: "resources"
-        target: "resources"
