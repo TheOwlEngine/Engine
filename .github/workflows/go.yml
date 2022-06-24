@@ -1,13 +1,17 @@
-name: Release Engine
+name: Engine Build & Release
 
-on: [push]
+on:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
 
   build:
-    name: engine-linux/amd64
+    name: Build Engine for Linux & Darwin
     runs-on: ubuntu-latest
     steps:
+
     - uses: actions/checkout@v3
 
     - name: Set up Go
@@ -15,21 +19,43 @@ jobs:
       with:
         go-version: 1.18
 
-    - name: Build Engine CLI
-      run: env GOOS=linux GOARCH=amd64 go build -o owl ./bin/cli.go
+    - name: Create Artefact
+      run: |
+        mkdir -p engine-artifact
+        mv flows engine-artifact/flows
+        mv logs engine-artifact/logs
+        mv resources engine-artifact/resources
+        mv LICENSE engine-artifact/LICENSE
+        mv README.md engine-artifact/README.md
 
-    - name: Build Engine Server
-      run: env GOOS=linux GOARCH=amd64 go build -o server ./main.go
+    # Build Linux AMD64
+    - name: Build Linux AMD64 CLI
+      run: |
+        env GOOS=linux GOARCH=amd64 go build -o owl ./bin/cli.go
+        env GOOS=linux GOARCH=amd64 go build -o server ./main.go
+        mv owl engine-artifact/owl
+        mv server engine-artifact/server
 
-    - uses: "marvinpinto/action-automatic-releases@latest"
+    - uses: montudor/action-zip@v1
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
-        title: "Release Latest Engine"
-        prerelease: false
-        files: |
-          flows/
-          logs/
-          resources/
-          LICENSE
-          README.md
+        args: zip -qq -r engine-linux-amd64-${{github.ref_name}}.zip engine-artifact
+
+    # Build Darwin AMD64
+    - name: Build Darwin AMD64 CLI
+      run: |
+        env GOOS=darwin GOARCH=amd64 go build -o owl ./bin/cli.go
+        env GOOS=darwin GOARCH=amd64 go build -o server ./main.go
+        mv owl engine-artifact/owl
+        mv server engine-artifact/server
+
+    - uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -r engine-darwin-amd64-${{github.ref_name}}.zip engine-artifact
+
+    - name: Release
+      uses: anton-yurchenko/git-release@latest
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: |
+            ./*.zip
