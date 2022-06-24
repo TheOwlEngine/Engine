@@ -20,3 +20,14 @@ jobs:
 
     - name: Build Engine Server
       run: env GOOS=linux GOARCH=amd64 go build -o server ./main.go
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        files: |
+          flows/
+          logs/
+          resources/
+          LICENSE
+          README.md
