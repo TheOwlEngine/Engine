@@ -1,6 +1,9 @@
 name: Engine Build & Release
 
-on: [push]
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
 
@@ -24,26 +27,26 @@ jobs:
 
     - name: Create Artefact Linux AMD64
       run: |
-        mkdir -p engine-artifact
-        mv flows engine-artifact/flows
-        mv logs engine-artifact/logs
-        mv resources engine-artifact/resources
-        mv LICENSE engine-artifact/LICENSE
-        mv README.md engine-artifact/README.md
-        mv owl engine-artifact/owl
-        mv server engine-artifact/server
+        mkdir -p engine-${{github.ref_name}}
+        mv flows engine-${{github.ref_name}}/flows
+        mv logs engine-${{github.ref_name}}/logs
+        mv resources engine-${{github.ref_name}}/resources
+        mv LICENSE engine-${{github.ref_name}}/LICENSE
+        mv README.md engine-${{github.ref_name}}/README.md
+        mv owl engine-${{github.ref_name}}/owl
+        mv server engine-${{github.ref_name}}/server
 
     - uses: montudor/action-zip@v1
       with:
-        args: zip -qq -r engine-linux-amd64.zip engine-artifact
+        args: zip -qq -r engine-linux-amd64-${{github.ref_name}}.zip engine-${{github.ref_name}}
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "engine-linux-amd64"
+        automatic_release_tag: "engine-linux-amd64-${{github.ref_name}}"
         prerelease: false
         files: |
-          engine-linux-amd64.zip
+          engine-linux-amd64-${{github.ref_name}}.zip
 
     # Build Linux 386
     - name: Build Linux 386 CLI
@@ -54,20 +57,20 @@ jobs:
 
     - name: Create Artefact Linux 386
       run: |
-        mv owl engine-artifact/owl
-        mv server engine-artifact/server
+        mv owl engine-${{github.ref_name}}/owl
+        mv server engine-${{github.ref_name}}/server
 
     - uses: montudor/action-zip@v1
       with:
-        args: zip -qq -r engine-linux-386.zip engine-artifact
+        args: zip -qq -r engine-linux-386-${{github.ref_name}}.zip engine-${{github.ref_name}}
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "engine-linux-386"
+        automatic_release_tag: "engine-linux-386-${{github.ref_name}}"
         prerelease: false
         files: |
-          engine-linux-386.zip
+          engine-linux-386-${{github.ref_name}}.zip
 
     # Build Darwin AMD64
     - name: Build Darwin AMD64 CLI
@@ -78,17 +81,17 @@ jobs:
 
     - name: Create Artefact Darwin AMD64
       run: |
-        mv owl engine-artifact/owl
-        mv server engine-artifact/server
+        mv owl engine-${{github.ref_name}}/owl
+        mv server engine-${{github.ref_name}}/server
 
     - uses: montudor/action-zip@v1
       with:
-        args: zip -qq -r engine-darwin-amd64.zip engine-artifact
+        args: zip -qq -r engine-darwin-amd64-${{github.ref_name}}.zip engine-${{github.ref_name}}
 
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "engine-darwin-amd64"
+        automatic_release_tag: "engine-darwin-amd64-${{github.ref_name}}"
         prerelease: false
         files: |
-          engine-darwin-amd64.zip
+          engine-darwin-amd64-${{github.ref_name}}.zip
