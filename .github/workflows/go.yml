@@ -32,6 +32,10 @@ jobs:
         cp owl engine-linux-amd64/owl
         cp server engine-linux-amd64/server
 
+    - uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -r engine-linux-amd64.zip engine-linux-amd64
+
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
@@ -39,4 +43,4 @@ jobs:
         title: "engine-linux-amd64"
         prerelease: false
         files: |
-          engine-linux-amd64
+          engine-linux-amd64.zip
