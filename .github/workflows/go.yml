@@ -53,7 +53,7 @@ jobs:
         args: zip -qq -r engine-darwin-amd64-${{github.ref_name}}.zip engine-artifact
 
     - name: Release
-      uses: anton-yurchenko/git-release@latest
+      uses: anton-yurchenko/git-release@main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
