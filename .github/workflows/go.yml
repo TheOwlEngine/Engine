@@ -24,9 +24,9 @@ jobs:
     - name: Create Artefact
       run: |
         mkdir -p engine-linux-amd64
-        cp -R flows engine-linux-amd64/flows
-        cp -R logs engine-linux-amd64/logs
-        cp -R resources engine-linux-amd64/resources
+        mv flows engine-linux-amd64/flows
+        mv logs engine-linux-amd64/logs
+        mv resources engine-linux-amd64/resources
         cp LICENSE engine-linux-amd64/LICENSE
         cp README.md engine-linux-amd64/README.md
         cp owl engine-linux-amd64/owl
@@ -39,4 +39,4 @@ jobs:
         title: "engine-linux-amd64"
         prerelease: false
         files: |
-          engine-linux-amd64/*
+          engine-linux-amd64
