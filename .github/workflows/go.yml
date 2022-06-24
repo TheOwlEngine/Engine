@@ -5,7 +5,7 @@ on: [push]
 jobs:
 
   build:
-    name: engine-linux/amd64
+    name: engine-linux-amd64
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -21,15 +21,22 @@ jobs:
     - name: Build Engine Server
       run: env GOOS=linux GOARCH=amd64 go build -o server ./main.go
 
+    - name: Create Artefact
+      run: |
+        mkdir -p engine-linux-amd64
+        cp -R flows engine-linux-amd64/flows
+        cp -R logs engine-linux-amd64/logs
+        cp -R resources engine-linux-amd64/resources
+        cp LICENSE engine-linux-amd64/LICENSE
+        cp README.md engine-linux-amd64/README.md
+        cp owl engine-linux-amd64/owl
+        cp server engine-linux-amd64/server
+
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "latest"
-        title: "Release Latest Engine"
+        title: "engine-linux-amd64"
         prerelease: false
         files: |
-          flows/
-          logs/
-          resources/
-          LICENSE
-          README.md
+          engine-linux-amd64/*
