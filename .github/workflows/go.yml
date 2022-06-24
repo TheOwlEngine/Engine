@@ -1,0 +1,40 @@
+name: Release Engine
+
+on: [push]
+
+jobs:
+
+  build:
+    name: engine-linux/amd64
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.18
+
+    - name: Build Engine CLI
+      run: env GOOS=linux GOARCH=amd64 go build -o owl ./bin/cli.go
+
+    - name: Build Engine Server
+      run: env GOOS=linux GOARCH=amd64 go build -o server ./main.go
+
+    - name: Copy Flows
+      uses: canastro/copy-file-action@master
+      with:
+        source: "flows"
+        target: "flows"
+
+    - name: Copy Logs
+      uses: canastro/copy-file-action@master
+      with:
+        source: "logs"
+        target: "logs"
+
+    - name: Copy Resources
+      uses: canastro/copy-file-action@master
+      with:
+        source: "resources"
+        target: "resources"
