@@ -25,7 +25,7 @@ import (
 var directory string
 
 /**
- * Connector v1.0
+ * Connector v1.0.0
  *
  * Provide command line function to run all flows and send it into Engine server.
  */

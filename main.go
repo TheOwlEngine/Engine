@@ -66,6 +66,9 @@ var globalErrors []string
 var replacerPath *strings.Replacer
 var replacerSelector *strings.Replacer
 
+/**
+ * Engine v1.0.0
+ */
 func main() {
 	godotenv.Load(".env")
 
