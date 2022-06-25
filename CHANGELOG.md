@@ -1,3 +1,17 @@
+## [1.0.1] - 2022-06-25
+
+### Added
+
+- Ability to use Engine server inside Docker
+
+### Fixed
+
+- Fix file creation and video encoder
+
+### Changed
+
+- N/A
+
 ## [1.0.0] - 2022-06-25
 
 ### Added
