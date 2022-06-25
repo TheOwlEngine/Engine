@@ -32,6 +32,8 @@ RUN sed -i "s|http://archive.ubuntu.com|$apt_sources|g" /etc/apt/sources.list &&
     dumb-init \
     # headful mode support, for example: $ xvfb-run chromium-browser --remote-debugging-port=9222
     xvfb \
+    # ffmpeg
+    ffmpeg \
     # cleanup
     && rm -rf /var/lib/apt/lists/*
 

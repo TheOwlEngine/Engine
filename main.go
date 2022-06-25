@@ -87,7 +87,12 @@ func main() {
 	videoDirectory = resourcesDirectory + "/videos/"
 	logsDirectory = rootDirectory + "/logs/"
 
-	replacerPath = strings.NewReplacer(rootDirectory, "", "//", "/")
+	if rootDirectory != "/" {
+		replacerPath = strings.NewReplacer(rootDirectory, "", "//", "/")
+	} else {
+		replacerPath = strings.NewReplacer("//", "/")
+	}
+
 	replacerSelector = strings.NewReplacer(`"`, `'`, `[`, ``, `]`, ``)
 
 	// log to custom file
@@ -761,13 +766,12 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 				}
 
 				pathReplaced := replacerPath.Replace(string(capturePath))
-				pathRelative := rootDirectory + pathReplaced
 
 				time.Sleep(1 * time.Second)
 
 				fileSize := 0
 
-				filePosition, errorFilePosition := os.Stat(pathRelative)
+				filePosition, errorFilePosition := os.Stat(capturePath)
 
 				if errorFilePosition != nil {
 					log.Printf(red("[ Engine ] %v"), errorFilePosition)
