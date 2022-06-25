@@ -1,0 +1,46 @@
+# Set name property
+name: Extract Content from Website
+
+# Set engine URL
+engine: http://127.0.0.1:3000
+
+# Set entry page URL
+first_page: https://dummyimage.com/
+
+# Set recording option
+record: true
+
+# Flow process for every page
+flow:
+
+  - take:
+      selector: 'h1'
+      name: Title
+      parse: text
+
+  - take:
+      selector: 'cite'
+      name: Author
+      parse: text
+
+  - take:
+      selector: '#preview > img'
+      name: Image
+      parse: image
+
+  - take:
+      selector: 'a[href="300"]'
+      name: Anchor 300
+      parse: anchor
+
+  - take:
+      contains:
+        selector: 'a'
+        identifier: 'https://dummyimage.com/16:9x1080'
+      name: Anchor 16:9x1080
+      parse: anchor
+
+  - take:
+      selector: '#format ~ ul'
+      name: Image Format 
+      parse: html

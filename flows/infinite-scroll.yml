@@ -1,20 +1,20 @@
 # Set name property
-name: Infinite Scroll Function
+name: Infinite Scroll on Website
 
 # Set engine URL
 engine: http://127.0.0.1:3000
 
 # Set entry page URL
-first_page: http://127.0.0.1:8888/infinite-scroll.html
+first_page: https://infinite-scroll.com/demo/full-page/
 
 # Set total item per page
-items_on_page: 10
+items_on_page: 2
 
 # Set infinite scroll option
 infinite: true
 
 # Set total mouse scrolling behavior
-infinite_scroll: 10
+infinite_scroll: 5
 
 # Set recording option
 record: true
@@ -22,19 +22,19 @@ record: true
 # Flow process for every page
 flow:
 
-  - wrapper: .card:nth-child($loop_number)
+  - wrapper: 'article:nth-child($loop_number)'
 
   - take:
-      selector: .card-header
-      name: Header
-      parse: text
-
-  - take:
-      selector: .card-title
+      selector: 'h2.article__title'
       name: Title
       parse: text
 
   - take:
-      selector: .card-text
+      selector: 'p'
       name: Description
       parse: text
+
+  - take:
+      selector: 'img'
+      name: Image
+      parse: image

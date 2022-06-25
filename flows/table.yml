@@ -1,0 +1,36 @@
+# Set name property
+name: Extract Table from Website
+
+# Set engine URL
+engine: http://127.0.0.1:3000
+
+# Set entry page URL
+first_page: https://dummyimage.com/
+
+# Set recording option
+record: true
+
+# Flow process for every page
+flow:
+
+  - table:
+      selector: '#ad + table'
+      name: Ad Sizes
+      fields:
+        - Keyword
+        - Shortcuts
+        - Dimensions
+
+  - delay: 1
+
+  - table:
+      selector: '#screen + table'
+      name: Screen Standards
+
+  - delay: 1
+
+  - table:
+      selector: '#video + table'
+      name: Video Standards
+
+  - delay: 1

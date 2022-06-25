@@ -15,7 +15,7 @@ func (f future) Await() interface{} {
 	return f.await(context.Background())
 }
 
-// Exec executes the async function
+// Executes the async function
 func Async(f func() interface{}) Future {
 	var result interface{}
 	channel := make(chan struct{})

@@ -102,18 +102,13 @@ type Element struct {
 	Value    string   `yaml:"value" json:"value"`
 	Select   string   `yaml:"select" json:"select"`
 	Multiple []string `yaml:"multiple" json:"multiple"`
-	Check    string   `yaml:"check" json:"check"`
-	Radio    string   `yaml:"radio" json:"radio"`
-	// Upload   string   `yaml:"upload" json:"upload"`
-	Action string `yaml:"action" json:"action"`
+	Action   string   `yaml:"action" json:"action"`
 }
 
 type Take struct {
 	Name           string   `yaml:"name" json:"name"`
 	Selector       string   `yaml:"selector" json:"selector"`
 	Contains       Contains `yaml:"contains" json:"contains"`
-	NextToSelector string   `yaml:"next_to_selector" json:"next_to_selector"`
-	NextToContains Contains `yaml:"next_to_contains" json:"next_to_contains"`
 	Parse          string   `yaml:"parse" json:"parse"`
 	UseForNavigate bool     `yaml:"use_for_navigate" json:"use_for_navigate"`
 }

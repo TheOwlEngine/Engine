@@ -55,6 +55,7 @@ var imagesDirectory string
 var videoDirectory string
 var logsDirectory string
 
+var temporarySlugName string
 var temporaryDomainName string
 var temporaryNavigateUrl string
 var temporaryWrapperElement string
@@ -363,19 +364,17 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 					globalErrors = append(globalErrors, `Failed to decode your first page URL`)
 				}
 
-				temporaryDomainName = parsedUrl.Scheme + "://" + parsedUrl.Hostname()
+				temporarySlugName = slug.Make(request.Name) + "-" + pageId
+				temporaryDomainName = parsedUrl.Scheme + "__SCHEME__" + parsedUrl.Hostname()
 
 				isFinish, scraperResult := Flow(request, request.Flow, page, pageId, 0, paginateLimit, itemsOnPageLimit, temporaryScraperResult, diskUsage)
-
-				slugName := slug.Make(request.Name)
-				sluggableName := slugName + "-" + pageId
 
 				var resultJson = types.Result{
 					Id:             pageId,
 					Proxy:          proxyAddress,
 					Code:           200,
 					Name:           request.Name,
-					Slug:           sluggableName,
+					Slug:           temporarySlugName,
 					Message:        "The flow is running successfully",
 					Duration:       time.Since(start) / 1000000, // milisecond,
 					Engine:         string(request.Engine),
@@ -397,6 +396,9 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 					proto.NetworkClearBrowserCookies{}.Call(page)
 					proto.PageDeleteCookie{}.Call(page)
 					proto.StorageClearCookies{}.Call(page)
+					proto.StorageClearDataForOrigin{}.Call(page)
+					proto.StorageClearTrustTokens{}.Call(page)
+					proto.DOMStorageClear{}.Call(page)
 
 					defer page.MustClose()
 
@@ -537,7 +539,7 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 		flowData := flow[current]
 
 		var fieldName string = ""
-		var detectedElement *rod.Element
+		var detectedElement *rod.Element = nil
 		var selectorText string
 		var resultContent types.ResultContent
 
@@ -570,18 +572,8 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 			fieldName = flowData.Take.Name
 		}
 
-		if flowData.Take.NextToSelector != "" {
-			selectorText = flowData.Take.NextToSelector
-			fieldName = flowData.Take.Name
-		}
-
 		if flowData.Take.Contains.Selector != "" {
 			selectorText = flowData.Take.Contains.Selector
-			fieldName = flowData.Take.Name
-		}
-
-		if flowData.Take.NextToContains.Selector != "" {
-			selectorText = flowData.Take.NextToContains.Selector
 			fieldName = flowData.Take.Name
 		}
 
@@ -621,10 +613,6 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 				detectedElement = page.Timeout(defaultTimeout).MustElementR(selectorText, flowData.Element.Contains.Identifier)
 			} else if flowData.Take.Contains.Selector != "" {
 				detectedElement = page.Timeout(defaultTimeout).MustElementR(selectorText, flowData.Take.Contains.Identifier)
-			} else if flowData.Take.NextToSelector != "" {
-				detectedElement = page.Timeout(defaultTimeout).MustElement(selectorText).MustNext()
-			} else if flowData.Take.NextToContains.Selector != "" {
-				detectedElement = page.Timeout(defaultTimeout).MustElementR(selectorText, flowData.Take.NextToContains.Identifier).MustNext()
 			}
 		})
 
@@ -634,10 +622,6 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 
 		if flowData.Take.Contains.Identifier != "" {
 			selectorText = selectorText + " `" + flowData.Take.Contains.Identifier + "`"
-		}
-
-		if flowData.Take.NextToContains.Identifier != "" {
-			selectorText = selectorText + " `" + flowData.Take.NextToContains.Identifier + "`"
 		}
 
 		if errors.Is(fieldError, context.DeadlineExceeded) {
@@ -697,7 +681,6 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 		if detectedElement != nil {
 
 			if flowData.WaitFor.Selector != "" {
-				log.Println(flowData.WaitFor.Selector, selectorText)
 				var waitTimeOut = 10 * time.Second
 
 				if flowData.WaitFor.Delay > 0 {
@@ -728,7 +711,7 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 
 			} else if flowData.Element.Value != "" {
 
-				detectedElement.Eval("() => this.value = " + flowData.Element.Value)
+				detectedElement.Eval("() => this.value = '" + flowData.Element.Value + "'")
 
 			} else if flowData.Element.Select != "" {
 
@@ -742,7 +725,7 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 
 			} else if flowData.Capture.Name != "" {
 
-				capturePath := imagesDirectory + pageId + "-" + strconv.Itoa(paginateIndex) + "-" + flowData.Capture.Name + ".jpeg"
+				capturePath := imagesDirectory + temporarySlugName + "-" + strconv.Itoa(paginateIndex) + "-" + flowData.Capture.Name + ".jpeg"
 				captureOptions := &proto.PageCaptureScreenshot{
 					Format:      proto.PageCaptureScreenshotFormatJpeg,
 					Quality:     lib.Int(100),
@@ -801,14 +784,25 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 					resultContent.Content = ""
 				}
 
-			} else if flowData.Element.Check != "" || flowData.Element.Radio != "" || flowData.Element.Action == "Click" {
+			} else if flowData.Element.Action == "Click" {
 
-				detectedElement.MustClick()
+				failedWithMust := rod.Try(func() {
+					detectedElement.MustClick()
+				})
+
+				if failedWithMust != nil {
+					log.Printf(red("[ Engine ] Trying to force click element %s using JavaScript"), selectorText)
+
+					forceWithJS := rod.Try(func() {
+						detectedElement.Eval(`() => this.click()`)
+					})
+
+					if forceWithJS != nil {
+						log.Printf(red("[ Engine ] Failed to force click element %s, due to %v"), selectorText, forceWithJS)
+					}
+				}
+
 				page.MustWaitLoad()
-
-				// } else if flowData.Element.Upload != "" {
-
-				// 	detectedElement.MustSetFiles(flowData.Element.Upload)
 
 			} else if flowData.Element.Action == "Enter" {
 
@@ -852,7 +846,8 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 							sourceText = *source
 
 							if !strings.Contains(sourceText, "http") {
-								sourceText = strings.ReplaceAll(temporaryDomainName+sourceText, "//", "/")
+								sourceTextScheme := strings.ReplaceAll(temporaryDomainName+"/"+sourceText, "//", "/")
+								sourceText = strings.ReplaceAll(sourceTextScheme, "__SCHEME__", "://")
 							}
 						}
 
@@ -1023,7 +1018,8 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 
 							if len(tableCellContent) > 0 && continueExtract {
 								if temporaryTableHyperlink && !strings.Contains(tableCellContent, "http") {
-									tableCellContent = strings.ReplaceAll(temporaryDomainName+tableCellContent, "//", "/")
+									cellContentScheme := strings.ReplaceAll(temporaryDomainName+"/"+tableCellContent, "//", "/")
+									tableCellContent = strings.ReplaceAll(cellContentScheme, "__SCHEME__", "://")
 								}
 
 								temporaryTableData = append(temporaryTableData, types.ResultTableData{

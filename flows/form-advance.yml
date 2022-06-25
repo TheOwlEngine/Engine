@@ -1,0 +1,64 @@
+# Set name property
+name: Working with Advance Form
+
+# Set engine URL
+engine: http://127.0.0.1:3000
+
+# Set entry page URL
+first_page: https://bootstrap-vue.org/docs/components/form
+
+# Set recording option
+record: true
+
+# Flow process for every page
+flow:
+
+  - wrapper: '#introduction-to-forms-and-controls ~ div[translate] form'
+
+  - element:
+      selector: '#input-group-1 input'
+      write: Write Email address
+
+  - element:
+      selector: '#input-group-2 input'
+      write: Write Your Name
+
+  - element:
+      selector: '#input-group-3 select'
+      select: Tomatoes
+
+  - element:
+      contains:
+        selector: 'label'
+        identifier: Check me out
+      action: Click
+
+  - element:
+      contains:
+        selector: 'label'
+        identifier: Check that out
+      action: Click
+
+  - delay: 2
+
+  - element:
+      selector: '[type="reset"]'
+      action: Click
+
+  - delay: 2
+
+  - wrapper: '#feedback-helpers ~ div[translate] form'
+
+  - element:
+      selector: '#feedback-user'
+      value: TheOwlEngine
+  
+  - delay: 2
+
+  - wrapper: '#datalist-helper ~ div[translate]'
+
+  - element:
+      selector: '#input-with-list'
+      write: Orange
+  
+  - delay: 2

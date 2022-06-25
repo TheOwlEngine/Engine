@@ -1,0 +1,48 @@
+# Set name property
+name: Pagination on Website
+
+# Set engine URL
+engine: http://127.0.0.1:3000
+
+# Set entry page URL
+first_page: https://wordpress.org/themes/
+
+# Set total item per page
+items_on_page: 12
+
+# Set paginate page option
+paginate: true
+
+# Set paginate button for next behavior
+paginate_button: 'button.js-load-more-themes'
+
+# Set maximum page for paginate
+paginate_limit: 3
+
+# Set recording option
+record: true
+
+# Flow process for every page
+flow:
+
+  - wrapper: '.theme:nth-child($loop_number)'
+
+  - take:
+      selector: 'h3.theme-name'
+      name: Title
+      parse: text
+
+  - take:
+      selector: 'img'
+      name: Thumbnail
+      parse: image
+
+  - take:
+      selector: '.theme-author'
+      name: Author
+      parse: text
+
+  - take:
+      selector: 'a.url'
+      name: Detail
+      parse: anchor

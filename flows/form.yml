@@ -1,0 +1,58 @@
+# Set name property
+name: Basic TodoMVC Form
+
+# Set engine URL
+engine: http://127.0.0.1:3000
+
+# Set entry page URL
+first_page: https://todomvc.com/examples/vue/
+
+# Set recording option
+record: true
+
+# Flow process for every page
+flow:
+
+  - element:
+      selector: '.new-todo'
+      write: First Todo
+
+  - delay: 1
+
+  - element:
+      selector: '.new-todo'
+      action: Enter
+
+  - delay: 1
+
+  - element:
+      selector: '.new-todo'
+      write: Second Todo
+
+  - delay: 1
+
+  - element:
+      selector: '.new-todo'
+      action: Enter
+
+  - delay: 1
+
+  - element:
+      selector: '.todo-list .todo:nth-child(2) input.toggle'
+      action: Click
+
+  - delay: 1
+
+  - element:
+      selector: '.todo-list .todo:nth-child(1) button.destroy'
+      action: Click
+
+  - delay: 1
+
+  - element:
+      contains:
+        selector: 'a'
+        identifier: 'Completed'
+      action: Click
+
+  - delay: 1

@@ -1,0 +1,32 @@
+# Set name property
+name: Capture Website Element & Fullscreen
+
+# Set engine URL
+engine: http://127.0.0.1:3000
+
+# Set entry page URL
+first_page: https://dummyimage.com/
+
+# Set recording option
+record: true
+
+# Flow process for every page
+flow:
+
+  - capture:
+      selector: '#preview'
+      name: preview
+
+  - delay: 1
+
+  - capture:
+      selector: '#ad + table'
+      name: ad-table
+
+  - delay: 1
+
+  - capture:
+      name: fullscreen
+
+  - delay: 1
+
