@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -33,6 +34,7 @@ import (
 	"github.com/go-rod/rod/lib/utils"
 	"github.com/google/uuid"
 	"github.com/gosimple/slug"
+	"github.com/icza/mjpeg"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
 	"golang.org/x/net/html"
@@ -283,25 +285,24 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 				proxyAddress := page.MustNavigate("https://echo.owlengine.com/ip").MustWaitLoad().MustElement("body").MustText()
 
 				// Enable screencast frame when user use record parameter
-				frameCounter := 0
+				temporarySlugName = slug.Make(request.Name) + "-" + pageId
 				diskUsage := make(map[string]float64)
 				bandwidthUsage := make(map[string]float64)
+				videoPath := videoDirectory + temporarySlugName + ".mp4"
+
+				renderer, errorMjpeg := mjpeg.New(videoPath, int32(1440), int32(900), 6)
+
+				if errorMjpeg != nil {
+					log.Printf(red("[ Engine ] %v\n"), errorMjpeg)
+					globalErrors = append(globalErrors, `Failed to create temporary motion image`)
+				}
 
 				go page.EachEvent(func(e *proto.PageScreencastFrame) {
-					frameCount := "0" + strconv.Itoa(frameCounter)
-
-					if frameCounter > 9 {
-						frameCount = strconv.Itoa(frameCounter)
-					}
-
-					temporaryFilePath := videoDirectory + pageId + "-" + frameCount + "-frame.jpeg"
-
-					_ = utils.OutputFile(temporaryFilePath, e.Data)
+					renderer.AddFrame(e.Data)
 
 					proto.PageScreencastFrameAck{
 						SessionID: e.SessionID,
 					}.Call(page)
-					frameCounter++
 				}, func(e *proto.NetworkResponseReceived) {
 					bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
 				})()
@@ -333,7 +334,6 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 				}
 
 				temporaryScraperResult := make([]types.ResultPage, 0, paginateLimit)
-				recordResult := ""
 
 				repetitionEnv := os.Getenv(`MAX_PAGINATE_LIMIT`)
 
@@ -372,7 +372,6 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 					globalErrors = append(globalErrors, `Failed to decode your first page URL`)
 				}
 
-				temporarySlugName = slug.Make(request.Name) + "-" + pageId
 				temporaryDomainName = parsedUrl.Scheme + "__SCHEME__" + parsedUrl.Hostname()
 
 				isFinish, scraperResult := Flow(request, request.Flow, page, pageId, 0, paginateLimit, itemsOnPageLimit, temporaryScraperResult, diskUsage)
@@ -411,32 +410,52 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 					defer page.MustClose()
 
 					if request.Record {
-						_, videoPath, errors := lib.RenderVideo(request.Name, pageId, videoDirectory, globalErrors)
-
-						globalErrors = errors
-
-						recordResult = replacerPath.Replace(string(videoPath))
+						renderer.Close()
 
 						time.Sleep(1 * time.Second)
 
-						if recordResult != "" {
-							fileSize, errorFileSize := os.Stat(rootDirectory + recordResult)
+						compressedPath := strings.ReplaceAll(videoPath, ".mp4", "-compressed.mp4")
 
-							if errorFileSize != nil {
-								log.Printf(red("[ Engine ] %v"), errorFileSize)
-								globalErrors = append(globalErrors, `Failed to read recorded video size`)
-							} else {
-								diskUsage["videos"] += float64(fileSize.Size())
-							}
+						cmd := exec.Command("ffmpeg", "-i", videoPath, "-vcodec", "h264", "-acodec", "mp2", compressedPath)
+						stdout, errorFFmpeg := cmd.Output()
+
+						if errorFFmpeg != nil {
+							log.Printf(red("[ Engine ] %v\n"), errorFFmpeg)
+							globalErrors = append(globalErrors, `Failed to compress temporary motion image`)
 						}
+
+						if len(stdout) > 0 {
+							log.Printf("%s %v\n", yellow("[ Engine ]"), stdout)
+						}
+
+						fileSize, errorFileSize := os.Stat(compressedPath)
+
+						if errorFileSize != nil {
+							log.Printf(red("[ Engine ] %v"), errorFileSize)
+							globalErrors = append(globalErrors, `Failed to read recorded video size`)
+						} else {
+							diskUsage["videos"] += float64(fileSize.Size())
+						}
+
+						errorRemoveTemporary := os.Remove(videoPath)
+
+						if errorRemoveTemporary != nil {
+							log.Printf(red("[ Engine ] %v\n"), errorRemoveTemporary)
+							globalErrors = append(globalErrors, `Failed to remove temporary motion image`)
+						}
+
+						errorRemoveCompressed := os.Rename(compressedPath, videoPath)
+
+						if errorRemoveCompressed != nil {
+							log.Printf(red("[ Engine ] %v\n"), errorRemoveCompressed)
+							globalErrors = append(globalErrors, `Failed to remove compressed motion image`)
+						}
+
+						resultJson.Recording = replacerPath.Replace(engineProxyURL + videoPath)
 					}
 
 					if len(scraperResult) > 0 {
 						resultJson.Result = scraperResult
-					}
-
-					if recordResult != "" {
-						resultJson.Recording = engineProxyURL + recordResult
 					}
 				} else {
 					resultJson.Code = 500
