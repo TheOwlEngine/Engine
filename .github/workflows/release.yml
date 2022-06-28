@@ -19,6 +19,11 @@ jobs:
       with:
         go-version: 1.18
 
+    - name: Install Tesseract
+      run: |
+           sudo apt-get update
+           sudo apt-get install -y libtesseract-dev libleptonica-dev tesseract-ocr-eng tesseract-ocr-ind
+
     - name: Create Artefact
       run: |
         mkdir -p engine-artifact
