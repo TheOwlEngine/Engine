@@ -34,7 +34,7 @@ jobs:
     - name: Build Executable
       run: |
         sudo apt-get update
-        sudo apt-get install -y libtesseract-dev libleptonica-dev tesseract-ocr-eng tesseract-ocr-ind
+        sudo apt-get install -y libtesseract-dev libleptonica-dev tesseract-ocr-eng tesseract-ocr-ind build-essential
         env CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o artifact/owl-linux-amd64 ./bin/cli.go
         env CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o artifact/server-linux-amd64 ./main.go
         env CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o artifact/owl-darwin-amd64 ./bin/cli.go

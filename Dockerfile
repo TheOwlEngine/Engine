@@ -35,6 +35,8 @@ RUN sed -i "s|http://archive.ubuntu.com|$apt_sources|g" /etc/apt/sources.list &&
     tesseract-ocr-eng \
     # tesseract indonesian
     tesseract-ocr-ind \
+    # gcc
+    build-essential \
     # cleanup
     && rm -rf /var/lib/apt/lists/*
 
