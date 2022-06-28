@@ -1,3 +1,19 @@
+## [1.0.2] - 2022-06-28
+
+### Added
+
+- Add support for Windows architecture
+- Add ability to parse Image as OCR text
+- Add dynamic User Agent to bypass old browser detector
+
+### Fixed
+
+- Revamp video transcoder for multiplatform support
+
+### Changed
+
+- Self-hosted user need to install Tesseract with Language (EN & ID)
+
 ## [1.0.1] - 2022-06-25
 
 ### Added

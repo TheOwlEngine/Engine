@@ -59,3 +59,25 @@ jobs:
       with:
         args: |
             ./*.zip
+
+    # Build Windows 64
+    - name: Build Windows CLI
+      run: |
+        env GOOS=windows GOARCH=amd64 go build -o owl.exe ./bin/cli.go
+        env GOOS=windows GOARCH=amd64 go build -o server.exe ./main.go
+        rm -rf engine-artifact/owl
+        rm -rf engine-artifact/server
+        mv owl.exe engine-artifact/owl.exe
+        mv server.exe engine-artifact/server.exe
+
+    - uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -r engine-windows-amd64-${{github.ref_name}}.zip engine-artifact
+
+    - name: Release
+      uses: anton-yurchenko/git-release@main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: |
+            ./*.zip
