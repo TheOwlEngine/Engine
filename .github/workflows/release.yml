@@ -1,11 +1,9 @@
 name: Engine Build & Release
 
-# on:
-#   push:
-#     tags:
-#       - 'v*'
-
-on: [push]
+on:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
 
