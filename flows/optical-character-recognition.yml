@@ -1,0 +1,19 @@
+# Set name property
+name: Optical Character Recognition
+
+# Set engine URL
+engine: http://127.0.0.1:3000
+
+# Set entry page URL
+first_page: https://id.wikipedia.org/wiki/Berita
+
+# Set recording option
+record: true
+
+# Flow process for every page
+flow:
+
+  - take:
+      selector: '.mw-parser-output'
+      name: preview text
+      parse: ocr

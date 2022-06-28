@@ -21,6 +21,7 @@ require (
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.8 // indirect
+	github.com/otiai10/gosseract/v2 v2.3.1 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/xfrr/goffmpeg v0.0.0-20210624103149-5ca2d3062daf // indirect

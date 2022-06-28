@@ -2,6 +2,10 @@ package types
 
 import "time"
 
+type Proxy struct {
+	IP        string `json:"IP"`
+	UserAgent string `json:"User-Agent"`
+}
 type Result struct {
 	Id             string        `json:"id,omitempty"`
 	Code           int           `json:"code"`

@@ -34,7 +34,15 @@ RUN sed -i "s|http://archive.ubuntu.com|$apt_sources|g" /etc/apt/sources.list &&
     xvfb \
     # ffmpeg
     ffmpeg \
-    # cleanup
+    # tesseract
+    libtesseract-dev \
+    # leptonica
+    libleptonica-dev \
+    # tesseract english
+    tesseract-ocr-eng \
+    # tesseract indonesian
+    tesseract-ocr-ind \
+    # cleanup \
     && rm -rf /var/lib/apt/lists/*
 
 # processs reaper

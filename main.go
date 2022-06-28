@@ -27,6 +27,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
@@ -35,6 +36,7 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/icza/mjpeg"
 	"github.com/joho/godotenv"
+	"github.com/otiai10/gosseract/v2"
 	"github.com/urfave/cli"
 	"github.com/xfrr/goffmpeg/transcoder"
 	"golang.org/x/net/html"
@@ -67,6 +69,9 @@ var globalErrors []string
 
 var replacerPath *strings.Replacer
 var replacerSelector *strings.Replacer
+
+var tesseract *gosseract.Client
+var headerDetection types.Proxy
 
 /**
  * Engine v1.0.0
@@ -116,6 +121,10 @@ func main() {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 
 	yellow := color.New(color.FgYellow).SprintFunc()
+
+	tesseract = gosseract.NewClient()
+
+	defer tesseract.Close()
 
 	app := &cli.App{
 		Name:  "Engine",
@@ -282,7 +291,14 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 				start := time.Now()
 				page := engineBrowser.MustPage()
 
-				proxyAddress := page.MustNavigate("https://echo.owlengine.com/ip").MustWaitLoad().MustElement("body").MustText()
+				headerString := page.MustNavigate("https://echo.owlengine.com/latest").MustWaitLoad().MustElement("body").MustText()
+				json.Unmarshal([]byte(headerString), &headerDetection)
+
+				page.MustEmulate(devices.Device{
+					Title:          "Laptop Desktop",
+					UserAgent:      headerDetection.UserAgent,
+					AcceptLanguage: "en",
+				})
 
 				// Enable screencast frame when user use record parameter
 				temporarySlugName = slug.Make(request.Name) + "-" + pageId
@@ -378,7 +394,7 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 
 				var resultJson = types.Result{
 					Id:             pageId,
-					Proxy:          proxyAddress,
+					Proxy:          headerDetection.IP,
 					Code:           200,
 					Name:           request.Name,
 					Slug:           temporarySlugName,
@@ -783,7 +799,7 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 					})
 
 					if captureError != nil {
-						log.Printf(red("%s Failed to capture missing element %s"), "[ Engine ]", flowData.Capture.Selector)
+						log.Printf(red("[ Engine ] Failed to capture missing element %s"), flowData.Capture.Selector)
 						globalErrors = append(globalErrors, fmt.Sprintf(`Failed to capture missing selector %s for %s`, replacerSelector.Replace(flowData.Capture.Selector), flowData.Capture.Name))
 					}
 				}
@@ -890,6 +906,28 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 					resultContent.Length = len(sourceText)
 					resultContent.Name = fieldName
 					resultContent.Content = string(sourceText)
+				}
+
+				if flowData.Take.Parse == "ocr" {
+					captureError := rod.Try(func() {
+						screenshotBytes := detectedElement.MustScreenshot()
+
+						tesseract.SetImageFromBytes(screenshotBytes)
+						tesseract.Languages = []string{"eng", "ind"}
+
+						textDecoded, _ := tesseract.Text()
+						textNormalize := strings.ReplaceAll(strings.Replace(textDecoded, "\n", "<br>", -1), `"`, `“`)
+
+						resultContent.Type = "ocr"
+						resultContent.Length = len(textNormalize)
+						resultContent.Name = fieldName
+						resultContent.Content = textNormalize
+					})
+
+					if captureError != nil {
+						log.Printf(red("[ Engine ] Failed to capture element %v"), captureError)
+						globalErrors = append(globalErrors, fmt.Sprintf(`Failed to OCR selector %s for %s`, selectorText, fieldName))
+					}
 				}
 
 			} else if flowData.Table.Name != "" {
