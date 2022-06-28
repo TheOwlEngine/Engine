@@ -23,6 +23,7 @@ require (
 	github.com/mattn/go-isatty v0.0.8 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
+	github.com/xfrr/goffmpeg v0.0.0-20210624103149-5ca2d3062daf // indirect
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/gson v0.7.1 // indirect
 	github.com/ysmood/leakless v0.7.0 // indirect

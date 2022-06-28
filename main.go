@@ -12,7 +12,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -37,6 +36,7 @@ import (
 	"github.com/icza/mjpeg"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
+	"github.com/xfrr/goffmpeg/transcoder"
 	"golang.org/x/net/html"
 )
 
@@ -416,16 +416,20 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 
 						compressedPath := strings.ReplaceAll(videoPath, ".mp4", "-compressed.mp4")
 
-						cmd := exec.Command("ffmpeg", "-i", videoPath, "-vcodec", "h264", "-acodec", "mp2", compressedPath)
-						stdout, errorFFmpeg := cmd.Output()
+						transcode := new(transcoder.Transcoder)
+						errorInitialize := transcode.Initialize(videoPath, compressedPath)
 
-						if errorFFmpeg != nil {
-							log.Printf(red("[ Engine ] %v\n"), errorFFmpeg)
-							globalErrors = append(globalErrors, `Failed to compress temporary motion image`)
+						if errorInitialize != nil {
+							log.Printf(red("[ Engine ] %v"), errorInitialize)
+							globalErrors = append(globalErrors, `Failed to initialize video transcoder`)
 						}
 
-						if len(stdout) > 0 {
-							log.Printf("%s %v\n", yellow("[ Engine ]"), stdout)
+						doneTranscode := transcode.Run(false)
+						errorTranscoder := <-doneTranscode
+
+						if errorTranscoder != nil {
+							log.Printf(red("[ Engine ] %v"), errorTranscoder)
+							globalErrors = append(globalErrors, `Failed to transcode recorded video`)
 						}
 
 						fileSize, errorFileSize := os.Stat(compressedPath)
