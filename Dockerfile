@@ -50,10 +50,8 @@ ENV GO111MODULE=on
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-w -s" -o /app/engine
 RUN go run ./lib/browser/install.go
 
-COPY /app/engine /usr/bin/
-
 COPY flows ./flows
 COPY logs ./logs
 COPY resources ./resources
 
-CMD engine
+CMD /app/engine

@@ -21,11 +21,6 @@ jobs:
       with:
         go-version: 1.18
 
-    - name: Install Tesseract
-      run: |
-           sudo apt-get update
-           sudo apt-get install -y libtesseract-dev libleptonica-dev tesseract-ocr-eng tesseract-ocr-ind
-
     - name: Create Artefact
       run: |
         mkdir -p artifact
@@ -35,9 +30,11 @@ jobs:
         mv LICENSE artifact/LICENSE
         mv README.md artifact/README.md
 
-    # Build Linux AMD64
-    - name: Build Linux AMD64 CLI
+    # Build Executable
+    - name: Build Executable
       run: |
+        sudo apt-get update
+        sudo apt-get install -y libtesseract-dev libleptonica-dev tesseract-ocr-eng tesseract-ocr-ind
         env GOOS=linux GOARCH=amd64 go build -o artifact/owl-linux-amd64 ./bin/cli.go
         env GOOS=linux GOARCH=amd64 go build -o artifact/server-linux-amd64 ./main.go
         env GOOS=darwin GOARCH=amd64 go build -o artifact/owl-darwin-amd64 ./bin/cli.go
