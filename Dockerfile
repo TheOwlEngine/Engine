@@ -1,17 +1,6 @@
-FROM golang AS builder
+FROM ubuntu:latest
 
 WORKDIR /app
-
-COPY main.go go.mod go.sum ./
-COPY lib ./lib
-COPY types ./types
-
-ENV GO111MODULE=on
-
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-w -s" -o /app/engine
-RUN go run ./lib/browser/install.go
-
-FROM ubuntu:latest
 
 ARG apt_sources="http://archive.ubuntu.com"
 
@@ -36,13 +25,12 @@ RUN sed -i "s|http://archive.ubuntu.com|$apt_sources|g" /etc/apt/sources.list &&
     xvfb \
     # ffmpeg
     ffmpeg \
+    # golang
+    golang \
     # tesseract
     libtesseract-dev \
     # leptonica
-    libleptonica-dev
-
-# Load languages
-RUN apt-get install -y \
+    libleptonica-dev \
     # tesseract english
     tesseract-ocr-eng \
     # tesseract indonesian
@@ -53,8 +41,16 @@ RUN apt-get install -y \
 # processs reaper
 ENTRYPOINT ["dumb-init", "--"]
 
-COPY --from=builder /root/.cache/rod /root/.cache/rod
-COPY --from=builder /app/engine /usr/bin/
+COPY main.go go.mod go.sum ./
+COPY lib ./lib
+COPY types ./types
+
+ENV GO111MODULE=on
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-w -s" -o /app/engine
+RUN go run ./lib/browser/install.go
+
+COPY /app/engine /usr/bin/
 
 COPY flows ./flows
 COPY logs ./logs

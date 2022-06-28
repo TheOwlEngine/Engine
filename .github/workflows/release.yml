@@ -28,58 +28,26 @@ jobs:
 
     - name: Create Artefact
       run: |
-        mkdir -p engine-artifact
-        mv flows engine-artifact/flows
-        mv logs engine-artifact/logs
-        mv resources engine-artifact/resources
-        mv LICENSE engine-artifact/LICENSE
-        mv README.md engine-artifact/README.md
+        mkdir -p artifact
+        mv flows artifact/flows
+        mv logs artifact/logs
+        mv resources artifact/resources
+        mv LICENSE artifact/LICENSE
+        mv README.md artifact/README.md
 
     # Build Linux AMD64
     - name: Build Linux AMD64 CLI
       run: |
-        env GOOS=linux GOARCH=amd64 go build -o owl ./bin/cli.go
-        env GOOS=linux GOARCH=amd64 go build -o server ./main.go
-        mv owl engine-artifact/owl
-        mv server engine-artifact/server
+        env GOOS=linux GOARCH=amd64 go build -o artifact/owl-linux-amd64 ./bin/cli.go
+        env GOOS=linux GOARCH=amd64 go build -o artifact/server-linux-amd64 ./main.go
+        env GOOS=darwin GOARCH=amd64 go build -o artifact/owl-darwin-amd64 ./bin/cli.go
+        env GOOS=darwin GOARCH=amd64 go build -o artifact/server-darwin-amd64 ./main.go
+        env GOOS=windows GOARCH=amd64 go build -o artifact/owl-windows-amd64.exe ./bin/cli.go
+        env GOOS=windows GOARCH=amd64 go build -o artifact/server-windows-amd64.exe ./main.go
 
     - uses: montudor/action-zip@v1
       with:
-        args: zip -qq -r engine-linux-amd64-${{github.ref_name}}.zip engine-artifact
-
-    # Build Darwin AMD64
-    - name: Build Darwin AMD64 CLI
-      run: |
-        env GOOS=darwin GOARCH=amd64 go build -o owl ./bin/cli.go
-        env GOOS=darwin GOARCH=amd64 go build -o server ./main.go
-        mv owl engine-artifact/owl
-        mv server engine-artifact/server
-
-    - uses: montudor/action-zip@v1
-      with:
-        args: zip -qq -r engine-darwin-amd64-${{github.ref_name}}.zip engine-artifact
-
-    - name: Release
-      uses: anton-yurchenko/git-release@main
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: |
-            ./*.zip
-
-    # Build Windows 64
-    - name: Build Windows CLI
-      run: |
-        env GOOS=windows GOARCH=amd64 go build -o owl.exe ./bin/cli.go
-        env GOOS=windows GOARCH=amd64 go build -o server.exe ./main.go
-        rm -rf engine-artifact/owl
-        rm -rf engine-artifact/server
-        mv owl.exe engine-artifact/owl.exe
-        mv server.exe engine-artifact/server.exe
-
-    - uses: montudor/action-zip@v1
-      with:
-        args: zip -qq -r engine-windows-amd64-${{github.ref_name}}.zip engine-artifact
+        args: zip -qq -r engine-${{github.ref_name}}.zip artifact
 
     - name: Release
       uses: anton-yurchenko/git-release@main
