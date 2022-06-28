@@ -310,24 +310,24 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 				bandwidthUsage := make(map[string]float64)
 				videoPath := videoDirectory + temporarySlugName + ".mp4"
 
-				renderer, errorMjpeg := mjpeg.New(videoPath, int32(1440), int32(900), 6)
-
-				if errorMjpeg != nil {
-					log.Printf(red("[ Engine ] %v\n"), errorMjpeg)
-					globalErrors = append(globalErrors, `Failed to create temporary motion image`)
-				}
-
-				go page.EachEvent(func(e *proto.PageScreencastFrame) {
-					renderer.AddFrame(e.Data)
-
-					proto.PageScreencastFrameAck{
-						SessionID: e.SessionID,
-					}.Call(page)
-				}, func(e *proto.NetworkResponseReceived) {
-					bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
-				})()
-
 				if request.Record {
+					renderer, errorMjpeg := mjpeg.New(videoPath, int32(1440), int32(900), 6)
+
+					if errorMjpeg != nil {
+						log.Printf(red("[ Engine ] %v\n"), errorMjpeg)
+						globalErrors = append(globalErrors, `Failed to create temporary motion image`)
+					}
+
+					go page.EachEvent(func(e *proto.PageScreencastFrame) {
+						renderer.AddFrame(e.Data)
+
+						proto.PageScreencastFrameAck{
+							SessionID: e.SessionID,
+						}.Call(page)
+					}, func(e *proto.NetworkResponseReceived) {
+						bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
+					})()
+
 					quality := int(100)
 					everyNthFrame := int(1)
 
@@ -336,6 +336,8 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 						Quality:       &quality,
 						EveryNthFrame: &everyNthFrame,
 					}.Call(page)
+
+					defer renderer.Close()
 				}
 
 				paginateLimit := 1
@@ -430,8 +432,6 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 					defer page.MustClose()
 
 					if request.Record {
-						renderer.Close()
-
 						time.Sleep(1 * time.Second)
 
 						compressedPath := strings.ReplaceAll(videoPath, ".mp4", "-compressed.mp4")

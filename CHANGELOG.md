@@ -1,3 +1,18 @@
+## [1.0.3] - 2022-06-28
+
+### Added
+
+- N/A
+
+### Fixed
+
+- Fix temporary video created even option not given
+
+### Changed
+
+- N/A
+
+
 ## [1.0.2] - 2022-06-28
 
 ### Added
