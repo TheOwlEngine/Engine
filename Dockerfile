@@ -35,8 +35,6 @@ RUN sed -i "s|http://archive.ubuntu.com|$apt_sources|g" /etc/apt/sources.list &&
     tesseract-ocr-eng \
     # tesseract indonesian
     tesseract-ocr-ind \
-    # gcc
-    build-essential \
     # cleanup
     && rm -rf /var/lib/apt/lists/*
 
@@ -49,7 +47,7 @@ COPY types ./types
 
 ENV GO111MODULE=on
 
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-w -s" -o /app/engine
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-w -s" -o /app/engine
 RUN go run ./lib/browser/install.go
 
 COPY flows ./flows

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 
 	"net"
@@ -12,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -36,7 +39,6 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/icza/mjpeg"
 	"github.com/joho/godotenv"
-	"github.com/otiai10/gosseract/v2"
 	"github.com/urfave/cli"
 	"github.com/xfrr/goffmpeg/transcoder"
 	"golang.org/x/net/html"
@@ -70,14 +72,21 @@ var globalErrors []string
 var replacerPath *strings.Replacer
 var replacerSelector *strings.Replacer
 
-var tesseract *gosseract.Client
 var headerDetection types.Proxy
 
 /**
  * Engine v1.0.0
  */
 func main() {
+	yellow := color.New(color.FgYellow).SprintFunc()
+
 	godotenv.Load(".env")
+
+	version, versionError := lib.Tesseract()
+
+	if versionError != nil {
+		panic("Tesseract is not installed")
+	}
 
 	engineProxyURL = os.Getenv("ENGINE_PROXY_URL")
 
@@ -120,12 +129,6 @@ func main() {
 	log.SetOutput(multiLogger)
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 
-	yellow := color.New(color.FgYellow).SprintFunc()
-
-	tesseract = gosseract.NewClient()
-
-	defer tesseract.Close()
-
 	app := &cli.App{
 		Name:  "Engine",
 		Usage: "This application will provide a browser base engine of the web scraper",
@@ -148,6 +151,7 @@ func main() {
 		Action: func(c *cli.Context) error {
 			println("")
 			log.Printf("%s Starting engine\n", yellow("[ Engine ]"))
+			log.Printf("%s Using Tesseract version %s\n", version, yellow("[ Engine ]"))
 
 			enginePort = c.String("port")
 			engineProxy = c.String("proxy")
@@ -910,12 +914,33 @@ func Parse(request types.Config, flow []types.Flow, current int, total int, page
 
 				if flowData.Take.Parse == "ocr" {
 					captureError := rod.Try(func() {
-						screenshotBytes := detectedElement.MustScreenshot()
+						file, errTemp := ioutil.TempFile("", "owl-ocr-"+pageId+".*.png")
 
-						tesseract.SetImageFromBytes(screenshotBytes)
-						tesseract.Languages = []string{"eng", "ind"}
+						if errTemp != nil {
+							log.Fatal(errTemp)
+						}
 
-						textDecoded, _ := tesseract.Text()
+						fileTemp := file.Name()
+						txtFileTemp := file.Name() + `.txt`
+
+						defer os.Remove(fileTemp)
+						defer os.Remove(txtFileTemp)
+
+						detectedElement.MustScreenshot(fileTemp)
+
+						exec.Command("tesseract", fileTemp, fileTemp).Run()
+						file, err := os.Open(txtFileTemp)
+
+						if err != nil {
+							log.Fatal(err)
+						}
+
+						defer file.Close()
+
+						buf := new(bytes.Buffer)
+						buf.ReadFrom(file)
+
+						textDecoded := buf.String()
 						textNormalize := strings.ReplaceAll(strings.Replace(textDecoded, "\n", "<br>", -1), `"`, `“`)
 
 						resultContent.Type = "ocr"
