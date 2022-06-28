@@ -35,12 +35,12 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libtesseract-dev libleptonica-dev tesseract-ocr-eng tesseract-ocr-ind
-        env GOOS=linux GOARCH=amd64 go build -o artifact/owl-linux-amd64 ./bin/cli.go
-        env GOOS=linux GOARCH=amd64 go build -o artifact/server-linux-amd64 ./main.go
-        env GOOS=darwin GOARCH=amd64 go build -o artifact/owl-darwin-amd64 ./bin/cli.go
-        env GOOS=darwin GOARCH=amd64 go build -o artifact/server-darwin-amd64 ./main.go
-        env GOOS=windows GOARCH=amd64 go build -o artifact/owl-windows-amd64.exe ./bin/cli.go
-        env GOOS=windows GOARCH=amd64 go build -o artifact/server-windows-amd64.exe ./main.go
+        env CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o artifact/owl-linux-amd64 ./bin/cli.go
+        env CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o artifact/server-linux-amd64 ./main.go
+        env CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o artifact/owl-darwin-amd64 ./bin/cli.go
+        env CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o artifact/server-darwin-amd64 ./main.go
+        env CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -o artifact/owl-windows-amd64.exe ./bin/cli.go
+        env CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -o artifact/server-windows-amd64.exe ./main.go
 
     - uses: montudor/action-zip@v1
       with:
