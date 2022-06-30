@@ -1,3 +1,18 @@
+## [1.0.4] - 2022-07-01
+
+### Added
+
+- N/A
+
+### Fixed
+
+- Fix undetectable bandwidth when record property is false
+- Fix console output for parsing Tesseract version
+
+### Changed
+
+- N/A
+
 ## [1.0.3] - 2022-06-28
 
 ### Added
@@ -11,7 +26,6 @@
 ### Changed
 
 - N/A
-
 
 ## [1.0.2] - 2022-06-28
 

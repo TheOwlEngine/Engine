@@ -151,7 +151,7 @@ func main() {
 		Action: func(c *cli.Context) error {
 			println("")
 			log.Printf("%s Starting engine\n", yellow("[ Engine ]"))
-			log.Printf("%s Using Tesseract version %s\n", version, yellow("[ Engine ]"))
+			log.Printf("%s Using Tesseract version %s\n", yellow("[ Engine ]"), version)
 
 			enginePort = c.String("port")
 			engineProxy = c.String("proxy")
@@ -310,6 +310,10 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 				bandwidthUsage := make(map[string]float64)
 				videoPath := videoDirectory + temporarySlugName + ".mp4"
 
+				go page.EachEvent(func(e *proto.NetworkResponseReceived) {
+					bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
+				})()
+
 				if request.Record {
 					renderer, errorMjpeg := mjpeg.New(videoPath, int32(1440), int32(900), 6)
 
@@ -324,8 +328,6 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 						proto.PageScreencastFrameAck{
 							SessionID: e.SessionID,
 						}.Call(page)
-					}, func(e *proto.NetworkResponseReceived) {
-						bandwidthUsage[strings.ToLower(string(e.Type))] += e.Response.EncodedDataLength
 					})()
 
 					quality := int(100)
