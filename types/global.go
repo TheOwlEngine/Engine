@@ -3,9 +3,25 @@ package types
 import "time"
 
 type Proxy struct {
-	IP        string `json:"IP"`
-	UserAgent string `json:"User-Agent"`
+	IP        string    `json:"ip"`
+	UserAgent UserAgent `json:"user_agent"`
 }
+
+type UserAgent struct {
+	Code      string `json:"code"`
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	OS        string `json:"os"`
+	OSVersion string `json:"osversion"`
+	Device    string `json:"device"`
+	Mobile    bool   `json:"mobile"`
+	Tablet    bool   `json:"tablet"`
+	Desktop   bool   `json:"desktop"`
+	Bot       bool   `json:"bot"`
+	URL       string `json:"url"`
+	String    string `json:"string"`
+}
+
 type Result struct {
 	Id             string        `json:"id,omitempty"`
 	Code           int           `json:"code"`

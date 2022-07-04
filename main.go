@@ -295,12 +295,12 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 				start := time.Now()
 				page := engineBrowser.MustPage()
 
-				headerString := page.MustNavigate("https://echo.owlengine.com/latest").MustWaitLoad().MustElement("body").MustText()
+				headerString := page.MustNavigate("https://echo.owlengine.com/ua/latest").MustWaitLoad().MustElement("body").MustText()
 				json.Unmarshal([]byte(headerString), &headerDetection)
 
 				page.MustEmulate(devices.Device{
 					Title:          "Laptop Desktop",
-					UserAgent:      headerDetection.UserAgent,
+					UserAgent:      headerDetection.UserAgent.String,
 					AcceptLanguage: "en",
 				})
 
