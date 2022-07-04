@@ -1,3 +1,17 @@
+## [1.0.5] - 2022-07-05
+
+### Added
+
+- N/A
+
+### Fixed
+
+- N/A
+
+### Changed
+
+- Update browser emulation due to changes on Echo project
+
 ## [1.0.4] - 2022-07-01
 
 ### Added
