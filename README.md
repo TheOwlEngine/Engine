@@ -12,7 +12,6 @@ You can use the Engine as a scraping tool to scrape content such as text, HTML, 
 - [Installation](https://docs.owlengine.com/engine/self-hosted)
 - [Configuration](https://docs.owlengine.com/engine/self-hosted/configuration)
 - [Usage](https://docs.owlengine.com/engine/self-hosted/usage)
-- [Deployment](https://docs.owlengine.com/engine/self-hosted/deployment)
 
 ## License
 
