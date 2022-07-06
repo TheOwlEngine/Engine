@@ -1,3 +1,18 @@
+## [1.0.6] - 2022-07-07
+
+### Added
+
+- Windows support for Powershell
+- Validation for Tesseract & FFmpeg version
+
+### Fixed
+
+- N/A
+
+### Changed
+
+- Video transcoder process after recording
+
 ## [1.0.5] - 2022-07-05
 
 ### Added
