@@ -40,7 +40,6 @@ import (
 	"github.com/icza/mjpeg"
 	"github.com/joho/godotenv"
 	"github.com/urfave/cli"
-	"github.com/xfrr/goffmpeg/transcoder"
 	"golang.org/x/net/html"
 )
 
@@ -74,6 +73,11 @@ var replacerSelector *strings.Replacer
 
 var headerDetection types.Proxy
 
+type VideoOutput struct {
+	out []byte
+	err error
+}
+
 /**
  * Engine v1.0.0
  */
@@ -82,10 +86,16 @@ func main() {
 
 	godotenv.Load(".env")
 
-	version, versionError := lib.Tesseract()
+	tesseractVersion, tesseractVersionError := lib.Tesseract()
 
-	if versionError != nil {
+	if tesseractVersionError != nil {
 		panic("Tesseract is not installed")
+	}
+
+	ffmpegVersion, ffmpegVersionError := lib.Ffmpeg()
+
+	if ffmpegVersionError != nil {
+		panic("FFmpeg is not installed")
 	}
 
 	engineProxyURL = os.Getenv("ENGINE_PROXY_URL")
@@ -151,7 +161,8 @@ func main() {
 		Action: func(c *cli.Context) error {
 			println("")
 			log.Printf("%s Starting engine\n", yellow("[ Engine ]"))
-			log.Printf("%s Using Tesseract version %s\n", yellow("[ Engine ]"), version)
+			log.Printf("%s Using Tesseract version %s\n", yellow("[ Engine ]"), tesseractVersion)
+			log.Printf("%s Using FFmpeg version %s\n", yellow("[ Engine ]"), ffmpegVersion)
 
 			enginePort = c.String("port")
 			engineProxy = c.String("proxy")
@@ -438,46 +449,52 @@ func Pages(w http.ResponseWriter, r *http.Request) {
 
 						compressedPath := strings.ReplaceAll(videoPath, ".mp4", "-compressed.mp4")
 
-						transcode := new(transcoder.Transcoder)
-						errorInitialize := transcode.Initialize(videoPath, compressedPath)
+						ch := make(chan VideoOutput)
 
-						if errorInitialize != nil {
-							log.Printf(red("[ Engine ] %v"), errorInitialize)
-							globalErrors = append(globalErrors, `Failed to initialize video transcoder`)
+						go func() {
+							cmd := exec.Command("ffmpeg", "-i", videoPath, "-vcodec", "h264", "-acodec", "aac", compressedPath)
+							out, err := cmd.CombinedOutput()
+							ch <- VideoOutput{out, err}
+						}()
+
+						select {
+						case <-time.After(10 * time.Second):
+							log.Println(red("[ Engine ] Getting time out when compressing recording."))
+							globalErrors = append(globalErrors, `Failed to compress recorded video`)
+						case buffer := <-ch:
+							if buffer.err != nil {
+								log.Printf(red("[ Engine ] Failed to compress recording, error %v"), buffer.err)
+								globalErrors = append(globalErrors, `Failed to compress recorded video`)
+							} else {
+								log.Printf("%s Recording for #%s already compressed", green("[ Engine ]"), pageId)
+
+								fileSize, errorFileSize := os.Stat(compressedPath)
+
+								if errorFileSize != nil {
+									log.Printf(red("[ Engine ] %v"), errorFileSize)
+									globalErrors = append(globalErrors, `Failed to read recorded video size`)
+								} else {
+									diskUsage["videos"] += float64(fileSize.Size())
+								}
+
+								errorRemoveTemporary := os.Remove(videoPath)
+
+								if errorRemoveTemporary != nil {
+									log.Printf(red("[ Engine ] %v\n"), errorRemoveTemporary)
+									globalErrors = append(globalErrors, `Failed to remove temporary motion image`)
+								}
+
+								errorRemoveCompressed := os.Rename(compressedPath, videoPath)
+
+								if errorRemoveCompressed != nil {
+									log.Printf(red("[ Engine ] %v\n"), errorRemoveCompressed)
+									globalErrors = append(globalErrors, `Failed to remove compressed motion image`)
+								}
+
+								resultJson.Recording = replacerPath.Replace(engineProxyURL + videoPath)
+							}
 						}
 
-						doneTranscode := transcode.Run(false)
-						errorTranscoder := <-doneTranscode
-
-						if errorTranscoder != nil {
-							log.Printf(red("[ Engine ] %v"), errorTranscoder)
-							globalErrors = append(globalErrors, `Failed to transcode recorded video`)
-						}
-
-						fileSize, errorFileSize := os.Stat(compressedPath)
-
-						if errorFileSize != nil {
-							log.Printf(red("[ Engine ] %v"), errorFileSize)
-							globalErrors = append(globalErrors, `Failed to read recorded video size`)
-						} else {
-							diskUsage["videos"] += float64(fileSize.Size())
-						}
-
-						errorRemoveTemporary := os.Remove(videoPath)
-
-						if errorRemoveTemporary != nil {
-							log.Printf(red("[ Engine ] %v\n"), errorRemoveTemporary)
-							globalErrors = append(globalErrors, `Failed to remove temporary motion image`)
-						}
-
-						errorRemoveCompressed := os.Rename(compressedPath, videoPath)
-
-						if errorRemoveCompressed != nil {
-							log.Printf(red("[ Engine ] %v\n"), errorRemoveCompressed)
-							globalErrors = append(globalErrors, `Failed to remove compressed motion image`)
-						}
-
-						resultJson.Recording = replacerPath.Replace(engineProxyURL + videoPath)
 					}
 
 					if len(scraperResult) > 0 {

@@ -73,11 +73,21 @@ func Cors(w *http.ResponseWriter, req *http.Request) {
 }
 
 func Tesseract() (string, error) {
-	output, err := exec.Command("tesseract", "-v").Output()
+	output, err := exec.Command("tesseract", "--version").Output()
 
 	if err != nil {
 		return "", err
 	}
 
 	return string(output[10:15]), nil
+}
+
+func Ffmpeg() (string, error) {
+	output, err := exec.Command("ffmpeg", "-version").Output()
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(output[15:20]), nil
 }
